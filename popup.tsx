@@ -1,26 +1,18 @@
-import { useState } from "react"
+import React from "react";
 
-function IndexPopup() {
-  const [data, setData] = useState("")
-
+const Popup = () => {
   return (
-    <div
-      style={{
-        padding: 16
-      }}>
-      <h2>
-        Welcome to your{" "}
-        <a href="https://www.plasmo.com" target="_blank">
-          Plasmo
-        </a>{" "}
-        Extension!
-      </h2>
-      <input onChange={(e) => setData(e.target.value)} value={data} />
-      <a href="https://docs.plasmo.com" target="_blank">
-        View Docs
-      </a>
+    <div className="w-80 p-4 text-center">
+      <h2 className="text-lg font-semibold mb-2">Furlg</h2>
+      <p className="text-gray-600 mb-4">请打开新标签页使用Furlg搜索功能</p>
+      <button
+        onClick={() => chrome.tabs.create({ url: 'chrome://newtab/' })}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+      >
+        打开新标签页
+      </button>
     </div>
-  )
-}
+  );
+};
 
-export default IndexPopup
+export default Popup;

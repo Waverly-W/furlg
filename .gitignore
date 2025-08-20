@@ -1,33 +1,179 @@
 
+# Furlg Chrome Extension - .gitignore
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# ===== Node.js =====
+# Dependencies
+node_modules/
 /.pnp
 .pnp.js
-
-# testing
-/coverage
-
-# misc
-.DS_Store
-*.pem
-
-# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# Package manager lock files (keep only one)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
-out/
+# ===== Environment & Configuration =====
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Runtime configuration
+.npmrc
+.yarnrc
+
+# ===== Build & Distribution =====
+# Build outputs
 build/
 dist/
+out/
+*.tgz
+*.tar.gz
 
-# plasmo
+# Plasmo framework
+.plasmo/
 .plasmo
 
-# typescript
+# TypeScript
 .tsbuildinfo
+*.tsbuildinfo
+
+# ===== Testing =====
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Jest
+.jest/
+
+# ===== IDE & Editor =====
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.swp
+*.swo
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+
+# ===== Operating System =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.nfs*
+
+# ===== Chrome Extension Specific =====
+# Extension packages
+*.crx
+*.pem
+*.zip
+
+# Chrome extension development
+.chrome/
+chrome-extension/
+
+# Web store assets (if not needed in repo)
+# store-assets/
+
+# ===== Temporary & Cache =====
+# Temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+
+# ===== Logs =====
+# Application logs
+logs/
+*.log
+
+# Runtime logs
+lerna-debug.log*
+
+# ===== Security =====
+# Private keys
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Certificates
+*.crt
+*.cer
+
+# ===== Documentation =====
+# Generated documentation (if auto-generated)
+# docs/api/
+
+# ===== Backup & Archive =====
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# ===== Custom Project Files =====
+# Development notes
+NOTES.md
+TODO.md
+.notes/
+
+# Local configuration
+config.local.js
+config.local.json
+
+# Test data
+test-data/
+mock-data/
