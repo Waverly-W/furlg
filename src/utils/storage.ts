@@ -179,6 +179,47 @@ export class StorageManager {
   }
 
   /**
+   * 删除单个历史记录
+   */
+  static async deleteSearchHistory(historyId: string): Promise<void> {
+    try {
+      const allHistory = await this.getSearchHistory();
+      const filteredHistory = allHistory.filter(h => h.id !== historyId);
+      await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: filteredHistory });
+    } catch (error) {
+      console.error('删除历史记录失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 清空所有历史记录
+   */
+  static async clearAllSearchHistory(): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: [] });
+    } catch (error) {
+      console.error('清空历史记录失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量删除历史记录
+   */
+  static async deleteMultipleSearchHistory(historyIds: string[]): Promise<void> {
+    try {
+      const allHistory = await this.getSearchHistory();
+      const idSet = new Set(historyIds);
+      const filteredHistory = allHistory.filter(h => !idSet.has(h.id));
+      await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: filteredHistory });
+    } catch (error) {
+      console.error('批量删除历史记录失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 清空所有数据
    */
   static async clearAll(): Promise<void> {

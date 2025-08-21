@@ -3,6 +3,7 @@ import type { Template } from '../types';
 import { StorageManager } from '../utils/storage';
 import { UrlBuilder } from '../utils/urlBuilder';
 import { LoadingSpinner, LoadingButton } from './LoadingSpinner';
+import { TemplateHistoryManager } from './TemplateHistoryManager';
 
 interface TemplateManagerProps {
   onTemplateSelect?: (template: Template) => void;
@@ -176,6 +177,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   // 验证表单
   const validateForm = (): boolean => {
@@ -223,9 +225,16 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
     }
   };
 
+  // 应用预设关键词到表单
+  const handleApplyKeyword = (keyword: string) => {
+    // 这里可以将关键词应用到某个字段，比如作为测试关键词
+    // 或者可以显示一个提示，让用户知道可以使用这个关键词进行测试
+    alert(`预设关键词: "${keyword}"\n您可以使用此关键词测试模板的搜索功能。`);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+      <div className="bg-white rounded-lg p-6 w-[600px] max-w-[90vw] max-h-[90vh] overflow-y-auto mx-4">
         <h3 className="text-lg font-semibold mb-4">
           {template ? '编辑模板' : '添加模板'}
         </h3>
@@ -281,6 +290,20 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
               设置后可在对应网站自动选择此模板
             </p>
           </div>
+
+          {/* 关键词预设管理 - 仅在编辑现有模板时显示 */}
+          {template && (
+            <TemplateHistoryManager
+              key={historyRefreshKey}
+              template={template}
+              onHistoryChange={() => {
+                // 关键词预设变更时刷新组件
+                setHistoryRefreshKey(prev => prev + 1);
+              }}
+              onApplyKeyword={handleApplyKeyword}
+              className="mt-4"
+            />
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">

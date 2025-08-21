@@ -67,6 +67,55 @@ const NewTabPage = () => {
     loadTemplates();
   }, []);
 
+  // 监听Chrome存储变化，实现数据同步
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName !== 'local') return;
+
+      // 监听模板变化
+      if (changes.templates) {
+        console.log('检测到模板数据变化，重新加载模板列表');
+        loadTemplates();
+      }
+
+      // 监听全局设置变化
+      if (changes.globalSettings) {
+        console.log('检测到全局设置变化，重新加载设置');
+        (async () => {
+          const s = await StorageManager.getGlobalSettings();
+          setOpenBehavior(s.openBehavior);
+          setTopHintEnabled(s.topHintEnabled);
+          setTopHintTitle(s.topHintTitle);
+          setTopHintSubtitle(s.topHintSubtitle);
+        })();
+      }
+
+      // 监听历史记录变化（用于刷新搜索建议）
+      if (changes.searchHistory) {
+        console.log('检测到历史记录变化');
+        // 如果当前有活跃的搜索建议，刷新它们
+        if (activeSuggestions) {
+          // 通过重新设置activeSuggestions来触发SearchSuggestions组件的重新加载
+          const currentActive = activeSuggestions;
+          setActiveSuggestions(null);
+          setTimeout(() => setActiveSuggestions(currentActive), 0);
+        }
+      }
+    };
+
+    // 添加存储变化监听器
+    if (chrome?.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+    }
+
+    // 清理监听器
+    return () => {
+      if (chrome?.storage?.onChanged) {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      }
+    };
+  }, [activeSuggestions]);
+
   // 处理搜索（使用指定关键词）
   const handleSearchWithKeyword = async (template: Template, keyword: string) => {
     if (!keyword?.trim()) {

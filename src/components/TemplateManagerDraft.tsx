@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { Template } from '../types'
 import { StorageManager } from '../utils/storage'
+import { TemplateHistoryManager } from './TemplateHistoryManager'
 
 interface TemplateManagerDraftProps {
   initialTemplates: Template[]
@@ -18,6 +19,7 @@ interface EditModalProps {
 // 编辑模态弹窗组件
 const EditModal: React.FC<EditModalProps> = ({ template, isOpen, onClose, onSave }) => {
   const [editForm, setEditForm] = useState({ name: '', urlPattern: '' })
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
 
   useEffect(() => {
     if (template) {
@@ -41,9 +43,14 @@ const EditModal: React.FC<EditModalProps> = ({ template, isOpen, onClose, onSave
 
   if (!isOpen || !template) return null
 
+  // 应用预设关键词
+  const handleApplyKeyword = (keyword: string) => {
+    alert(`预设关键词: "${keyword}"\n您可以使用此关键词测试模板的搜索功能。`);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[90vw]">
+      <div className="bg-white rounded-lg shadow-xl w-[600px] max-w-[90vw] max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">编辑模板</h3>
         </div>
@@ -70,6 +77,18 @@ const EditModal: React.FC<EditModalProps> = ({ template, isOpen, onClose, onSave
               placeholder="https://www.bing.com/search?q={keyword}"
             />
           </div>
+
+          {/* 关键词预设管理 */}
+          <TemplateHistoryManager
+            key={historyRefreshKey}
+            template={template}
+            onHistoryChange={() => {
+              // 关键词预设变更时刷新组件
+              setHistoryRefreshKey(prev => prev + 1);
+            }}
+            onApplyKeyword={handleApplyKeyword}
+            className="mt-4"
+          />
         </div>
         
         <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
