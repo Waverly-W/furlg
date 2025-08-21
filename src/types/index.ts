@@ -14,10 +14,15 @@ export interface SearchHistory {
   templateId: string;    // 关联的模板ID
   keyword: string;       // 搜索关键词
   timestamp: number;     // 搜索时间戳
+  usageCount?: number;   // 使用次数（可选，用于向后兼容）
+  createdAt?: number;    // 创建时间（可选，用于向后兼容）
 }
 
 // 存储数据结构
 export type OpenBehavior = "current" | "newtab"
+
+// 历史记录排序方式
+export type HistorySortType = "time" | "frequency"
 
 // 全局设置
 export interface GlobalSettings {
@@ -25,6 +30,7 @@ export interface GlobalSettings {
   topHintEnabled: boolean         // 是否显示顶部提示
   topHintTitle: string            // 顶部提示标题
   topHintSubtitle: string         // 顶部提示副标题
+  historySortType?: HistorySortType // 历史记录排序方式（可选，用于向后兼容）
 }
 
 export interface StorageData {

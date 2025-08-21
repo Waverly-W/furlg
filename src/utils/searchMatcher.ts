@@ -12,16 +12,14 @@ export class SearchMatcher {
    */
   static fuzzyMatch(history: SearchHistory[], query: string, limit: number = 10): SearchHistory[] {
     if (!query.trim()) {
-      // 如果查询为空，返回最近的记录
-      return history
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, limit);
+      // 如果查询为空，返回前面的记录（保持原有排序）
+      return history.slice(0, limit);
     }
 
     const queryLower = query.toLowerCase().trim();
-    
-    // 过滤匹配的记录
-    const matches = history.filter(item => 
+
+    // 过滤匹配的记录（保持原有排序）
+    const matches = history.filter(item =>
       item.keyword.toLowerCase().includes(queryLower)
     );
 

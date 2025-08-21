@@ -23,6 +23,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   const [suggestions, setSuggestions] = useState<SearchHistory[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const [sortType, setSortType] = useState<'time' | 'frequency'>('time');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 加载搜索建议
@@ -31,10 +32,14 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
     try {
       setLoading(true);
-      const history = await StorageManager.getSearchHistory(template.id);
+      const history = await StorageManager.getSortedSearchHistory(template.id);
       const matches = SearchMatcher.fuzzyMatch(history, query, 8);
       setSuggestions(matches);
       setSelectedIndex(-1);
+
+      // 获取当前排序方式
+      const settings = await StorageManager.getGlobalSettings();
+      setSortType(settings.historySortType || 'time');
     } catch (error) {
       console.error('加载搜索建议失败:', error);
       setSuggestions([]);
@@ -51,6 +56,21 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       setSelectedIndex(-1);
     }
   }, [template, query, visible]);
+
+  // 监听Chrome存储变化，实现排序方式变更时的实时更新
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName !== 'local') return;
+
+      // 监听全局设置变化
+      if (changes.globalSettings && visible && template) {
+        loadSuggestions(); // 重新加载以应用新的排序方式
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+  }, [visible, template]);
 
   // 处理键盘导航
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -129,6 +149,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               isSelected={index === selectedIndex}
               onClick={() => onSelect(suggestion.keyword)}
               onMouseEnter={() => setSelectedIndex(index)}
+              sortType={sortType}
             />
           ))}
         </div>
@@ -144,6 +165,7 @@ interface SuggestionItemProps {
   isSelected: boolean;
   onClick: () => void;
   onMouseEnter: () => void;
+  sortType: 'time' | 'frequency';
 }
 
 const SuggestionItem: React.FC<SuggestionItemProps> = ({
@@ -151,7 +173,8 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({
   query,
   isSelected,
   onClick,
-  onMouseEnter
+  onMouseEnter,
+  sortType
 }) => {
   const formatTime = (timestamp: number): string => {
     const now = Date.now();
@@ -185,14 +208,25 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
+          {sortType === 'frequency' ? (
+            // 频率图标
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          ) : (
+            // 时间图标
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          )}
         </svg>
-        <span 
+        <span
           className="truncate text-sm"
           dangerouslySetInnerHTML={{
             __html: SearchMatcher.highlightMatch(suggestion.keyword, query)
@@ -200,7 +234,10 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({
         />
       </div>
       <span className="text-xs text-gray-400 ml-2 flex-shrink-0">
-        {formatTime(suggestion.timestamp)}
+        {sortType === 'frequency'
+          ? `${suggestion.usageCount || 1} 次`
+          : formatTime(suggestion.timestamp)
+        }
       </span>
     </div>
   );

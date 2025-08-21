@@ -1,4 +1,4 @@
-import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior } from "../types";
+import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType } from "../types";
 
 // 存储键名常量
 const STORAGE_KEYS = {
@@ -15,7 +15,8 @@ const DEFAULT_DATA: StorageData = {
     openBehavior: 'newtab',
     topHintEnabled: true,
     topHintTitle: '搜索模板',
-    topHintSubtitle: '选择任意模板开始搜索'
+    topHintSubtitle: '选择任意模板开始搜索',
+    historySortType: 'time'
   }
 };
 
@@ -114,7 +115,26 @@ export class StorageManager {
   static async getSearchHistory(templateId?: string): Promise<SearchHistory[]> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEYS.SEARCH_HISTORY);
-      const allHistory = result[STORAGE_KEYS.SEARCH_HISTORY] || DEFAULT_DATA.searchHistory;
+      let allHistory = result[STORAGE_KEYS.SEARCH_HISTORY] || DEFAULT_DATA.searchHistory;
+
+      // 数据迁移：为旧数据添加新字段
+      let needsMigration = false;
+      allHistory = allHistory.map((h: SearchHistory) => {
+        if (h.usageCount === undefined || h.createdAt === undefined) {
+          needsMigration = true;
+          return {
+            ...h,
+            usageCount: h.usageCount || 1,
+            createdAt: h.createdAt || h.timestamp
+          };
+        }
+        return h;
+      });
+
+      // 如果需要迁移，保存更新后的数据
+      if (needsMigration) {
+        await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: allHistory });
+      }
 
       if (templateId) {
         return allHistory.filter((h: SearchHistory) => h.templateId === templateId);
@@ -123,6 +143,35 @@ export class StorageManager {
       return allHistory;
     } catch (error) {
       console.error('获取搜索历史失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 根据全局设置获取排序后的搜索历史记录
+   */
+  static async getSortedSearchHistory(templateId?: string): Promise<SearchHistory[]> {
+    try {
+      const history = await this.getSearchHistory(templateId);
+      const settings = await this.getGlobalSettings();
+      const sortType = settings.historySortType || 'time';
+
+      if (sortType === 'frequency') {
+        // 按使用频率排序（使用次数倒序，次数相同时按时间倒序）
+        return history.sort((a, b) => {
+          const aCount = a.usageCount || 1;
+          const bCount = b.usageCount || 1;
+          if (aCount !== bCount) {
+            return bCount - aCount;
+          }
+          return b.timestamp - a.timestamp;
+        });
+      } else {
+        // 按时间排序（时间倒序）
+        return history.sort((a, b) => b.timestamp - a.timestamp);
+      }
+    } catch (error) {
+      console.error('获取排序后的搜索历史失败:', error);
       return [];
     }
   }
@@ -140,15 +189,19 @@ export class StorageManager {
       );
 
       if (existingIndex >= 0) {
-        // 更新时间戳
+        // 更新时间戳和使用计数
         allHistory[existingIndex].timestamp = Date.now();
+        allHistory[existingIndex].usageCount = (allHistory[existingIndex].usageCount || 1) + 1;
       } else {
         // 添加新记录
+        const now = Date.now();
         const newHistory: SearchHistory = {
-          id: `${templateId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `${templateId}_${now}_${Math.random().toString(36).substr(2, 9)}`,
           templateId,
           keyword,
-          timestamp: Date.now()
+          timestamp: now,
+          usageCount: 1,
+          createdAt: now
         };
         allHistory.push(newHistory);
       }

@@ -24,13 +24,18 @@ export const TemplateHistoryManager: React.FC<TemplateHistoryManagerProps> = ({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
+  const [sortType, setSortType] = useState<'time' | 'frequency'>('time');
 
   // 加载该模板的关键词预设
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const templateHistory = await StorageManager.getSearchHistory(template.id);
+      const templateHistory = await StorageManager.getSortedSearchHistory(template.id);
       setHistory(templateHistory);
+
+      // 获取当前排序方式
+      const settings = await StorageManager.getGlobalSettings();
+      setSortType(settings.historySortType || 'time');
     } catch (error) {
       console.error('加载模板关键词预设失败:', error);
     } finally {
@@ -42,11 +47,26 @@ export const TemplateHistoryManager: React.FC<TemplateHistoryManagerProps> = ({
     loadHistory();
   }, [template.id]);
 
-  // 过滤关键词预设
+  // 监听Chrome存储变化，实现排序方式变更时的实时更新
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName !== 'local') return;
+
+      // 监听全局设置变化
+      if (changes.globalSettings) {
+        loadHistory(); // 重新加载以应用新的排序方式
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+  }, []);
+
+  // 过滤关键词预设（保持原有排序）
   const filteredHistory = history.filter(h => {
     if (!searchQuery.trim()) return true;
     return h.keyword.toLowerCase().includes(searchQuery.toLowerCase().trim());
-  }).sort((a, b) => b.timestamp - a.timestamp);
+  });
 
   // 格式化时间
   const formatTime = (timestamp: number): string => {
@@ -60,8 +80,20 @@ export const TemplateHistoryManager: React.FC<TemplateHistoryManagerProps> = ({
     if (minutes < 60) return `${minutes}分钟前`;
     if (hours < 24) return `${hours}小时前`;
     if (days < 7) return `${days}天前`;
-    
+
     return new Date(timestamp).toLocaleDateString();
+  };
+
+  // 格式化创建时间为具体日期时间
+  const formatCreatedTime = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // 删除单个关键词预设
@@ -223,6 +255,9 @@ export const TemplateHistoryManager: React.FC<TemplateHistoryManagerProps> = ({
             <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
               {history.length} 条
             </span>
+            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+              {sortType === 'time' ? '按时间排序' : '按频率排序'}
+            </span>
           </div>
 
           <div className="flex gap-2">
@@ -306,6 +341,7 @@ export const TemplateHistoryManager: React.FC<TemplateHistoryManagerProps> = ({
                   onDelete={() => handleDeleteHistory(item.id)}
                   onApply={() => handleApplyKeyword(item.keyword)}
                   formatTime={formatTime}
+                  formatCreatedTime={formatCreatedTime}
                 />
               ))
             )}
@@ -378,6 +414,7 @@ interface HistoryItemProps {
   onDelete: () => void;
   onApply: () => void;
   formatTime: (timestamp: number) => string;
+  formatCreatedTime: (timestamp: number) => string;
 }
 
 const HistoryItem: React.FC<HistoryItemProps> = ({
@@ -386,7 +423,8 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   onToggleSelect,
   onDelete,
   onApply,
-  formatTime
+  formatTime,
+  formatCreatedTime
 }) => {
   return (
     <div className={`p-2 rounded border transition-colors ${
@@ -404,8 +442,19 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
           <div className="font-medium text-sm text-gray-900 truncate">
             {history.keyword}
           </div>
-          <div className="text-xs text-gray-500">
-            {formatTime(history.timestamp)}
+          <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              使用 {history.usageCount || 1} 次
+            </span>
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {formatCreatedTime(history.createdAt || history.timestamp)}
+            </span>
           </div>
         </div>
 
