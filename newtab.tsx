@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import type { Template } from "./src/types";
+import type { Template, MultiKeywordValues } from "./src/types";
 import { StorageManager } from "./src/utils/storage";
 import { UrlBuilder } from "./src/utils/urlBuilder";
 import { TemplateManager } from "./src/components/TemplateManager";
-import { SearchSuggestions } from "./src/components/SearchSuggestions";
+import { SmartSearchCard } from "./src/components/SmartSearchCard";
 import { ToastContainer, useToast } from "./src/components/Toast";
 import { LoadingSpinner, LoadingButton } from "./src/components/LoadingSpinner";
 import { SettingsModal } from "./src/components/SettingsModal";
@@ -11,9 +11,7 @@ import "./style.css";
 
 const NewTabPage = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   const [showTemplateManager, setShowTemplateManager] = useState(false);
-  const [activeSuggestions, setActiveSuggestions] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchingTemplates, setSearchingTemplates] = useState<Record<string, boolean>>({});
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
@@ -22,7 +20,6 @@ const NewTabPage = () => {
   const [topHintTitle, setTopHintTitle] = useState('搜索模板');
   const [topHintSubtitle, setTopHintSubtitle] = useState('选择任意模板开始搜索');
   const [openBehavior, setOpenBehavior] = useState<'current' | 'newtab'>('newtab');
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toast = useToast();
 
@@ -32,13 +29,6 @@ const NewTabPage = () => {
       setLoading(true);
       const templateList = await StorageManager.getTemplates();
       setTemplates(templateList);
-
-      // 初始化搜索查询状态
-      const initialQueries: Record<string, string> = {};
-      templateList.forEach(template => {
-        initialQueries[template.id] = "";
-      });
-      setSearchQueries(initialQueries);
 
       // 如果没有模板，显示模板管理界面
       if (templateList.length === 0) {
@@ -90,16 +80,10 @@ const NewTabPage = () => {
         })();
       }
 
-      // 监听历史记录变化（用于刷新搜索建议）
+      // 监听历史记录变化
       if (changes.searchHistory) {
         console.log('检测到历史记录变化');
-        // 如果当前有活跃的搜索建议，刷新它们
-        if (activeSuggestions) {
-          // 通过重新设置activeSuggestions来触发SearchSuggestions组件的重新加载
-          const currentActive = activeSuggestions;
-          setActiveSuggestions(null);
-          setTimeout(() => setActiveSuggestions(currentActive), 0);
-        }
+        // 历史记录变化会自动被各个搜索卡片组件监听到
       }
     };
 
@@ -114,10 +98,10 @@ const NewTabPage = () => {
         chrome.storage.onChanged.removeListener(handleStorageChange);
       }
     };
-  }, [activeSuggestions]);
+  }, []);
 
-  // 处理搜索（使用指定关键词）
-  const handleSearchWithKeyword = async (template: Template, keyword: string) => {
+  // 处理单关键词搜索
+  const handleSingleKeywordSearch = async (template: Template, keyword: string) => {
     if (!keyword?.trim()) {
       toast.showWarning('请输入搜索内容', '搜索关键词不能为空');
       return;
@@ -144,47 +128,37 @@ const NewTabPage = () => {
     }
   };
 
-  // 处理搜索（使用输入框中的内容）
-  const handleSearch = async (template: Template) => {
-    const query = searchQueries[template.id];
-    await handleSearchWithKeyword(template, query);
-  };
-
-  // 处理输入变化
-  const handleInputChange = (templateId: string, value: string) => {
-    setSearchQueries(prev => ({ ...prev, [templateId]: value }));
-    // 只要输入框有焦点就显示建议，不管是否有内容
-    setActiveSuggestions(templateId);
-  };
-
-  // 处理建议选择
-  const handleSuggestionSelect = (templateId: string, keyword: string) => {
-    setSearchQueries(prev => ({ ...prev, [templateId]: keyword }));
-    setActiveSuggestions(null);
-
-    // 立即执行搜索
-    const template = templates.find(t => t.id === templateId);
-    if (template) {
-      // 使用setTimeout确保状态更新完成后再执行搜索
-      setTimeout(() => {
-        handleSearchWithKeyword(template, keyword);
-      }, 0);
+  // 处理多关键词搜索
+  const handleMultiKeywordSearch = async (template: Template, keywords: MultiKeywordValues) => {
+    // 验证关键词
+    const hasValidKeywords = Object.values(keywords).some(value => value && value.trim());
+    if (!hasValidKeywords) {
+      toast.showWarning('请输入搜索内容', '至少需要填写一个关键词');
+      return;
     }
-  };
 
-  // 处理键盘事件
-  const handleKeyDown = (templateId: string, event: React.KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      // 如果建议框打开且有选中项，让SearchSuggestions组件处理
-      // 否则直接执行搜索
-      if (activeSuggestions !== templateId) {
-        const template = templates.find(t => t.id === templateId);
-        if (template) {
-          handleSearch(template);
-        }
+    try {
+      setSearchingTemplates(prev => ({ ...prev, [template.id]: true }));
+
+      // 保存多关键词搜索历史（每个占位符独立保存）
+      await StorageManager.addMultiKeywordSearchHistory(template.id, keywords);
+
+      const searchUrl = UrlBuilder.buildUrlWithMultipleKeywords(template.urlPattern, keywords);
+      if (openBehavior === 'newtab') {
+        await UrlBuilder.openInNewTab(searchUrl)
+      } else {
+        window.location.href = searchUrl
       }
+
+    } catch (error) {
+      console.error('搜索失败:', error);
+      toast.showError('搜索失败', '无法打开搜索页面，请检查模板配置');
+    } finally {
+      setSearchingTemplates(prev => ({ ...prev, [template.id]: false }));
     }
   };
+
+
 
   // 滚动到指定模板卡片
   const scrollToTemplate = (templateId: string) => {
@@ -195,10 +169,10 @@ const NewTabPage = () => {
         behavior: 'smooth',
         block: 'center'
       });
-      // 聚焦到对应的输入框
+      // 高亮显示选中的卡片
       setTimeout(() => {
-        inputRefs.current[templateId]?.focus();
-      }, 400);
+        setActiveTemplateId(null);
+      }, 2000);
     }
   };
 
@@ -318,70 +292,23 @@ const NewTabPage = () => {
                     <div
                       key={template.id}
                       ref={(el) => (cardRefs.current[template.id] = el)}
-                      className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 p-5"
+                      className={`transition-all duration-300 ${
+                        activeTemplateId === template.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                      }`}
                     >
-                      {/* 模板名称 */}
-                      <div className="mb-4">
-                        <h3 className="text-base font-semibold text-gray-900 mb-0.5">
-                          {template.name}
-                        </h3>
-                        {template.domain && (
-                          <p className="text-xs text-gray-500">{template.domain}</p>
-                        )}
-                      </div>
-
-                      {/* 搜索输入框和按钮 */}
-                      <div className="relative">
-                        <div className="flex space-x-2">
-                          <div className="flex-1 relative">
-                            <input
-                              ref={(el) => (inputRefs.current[template.id] = el)}
-                              type="text"
-                              value={searchQueries[template.id] || ''}
-                              onChange={(e) => handleInputChange(template.id, e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(template.id, e)}
-                              onFocus={() => {
-                                // 聚焦时总是显示建议（包括空查询时显示所有历史记录）
-                                setActiveSuggestions(template.id);
-                              }}
-                              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
-                              placeholder="输入搜索关键词..."
-                              disabled={searchingTemplates[template.id]}
-                            />
-
-                            {/* 搜索建议 */}
-                            <SearchSuggestions
-                              template={template}
-                              query={searchQueries[template.id] || ''}
-                              onSelect={(keyword) => handleSuggestionSelect(template.id, keyword)}
-                              onClose={() => setActiveSuggestions(null)}
-                              visible={activeSuggestions === template.id}
-                              onEnterWithoutSelection={() => {
-                                setActiveSuggestions(null);
-                                handleSearch(template);
-                              }}
-                            />
-                          </div>
-
-                          <LoadingButton
-                            loading={searchingTemplates[template.id] || false}
-                            disabled={!searchQueries[template.id]?.trim()}
-                            onClick={() => handleSearch(template)}
-                            className="px-3.5 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </LoadingButton>
-                        </div>
-                      </div>
+                      <SmartSearchCard
+                        template={template}
+                        onSearchSingle={handleSingleKeywordSearch}
+                        onSearchMultiple={handleMultiKeywordSearch}
+                        isSearching={searchingTemplates[template.id] || false}
+                      />
                     </div>
                   ))}
                 </div>
 
                 {/* 使用提示 */}
                 <div className="text-center mt-12 text-gray-500 text-sm">
-                  <p>提示：聚焦输入框查看搜索历史，点击历史记录立即搜索，按 Enter 键快速搜索，点击侧边栏模板名称可快速定位到对应卡片</p>
+                  <p>提示：支持单关键词和多关键词模板，聚焦输入框查看搜索历史，使用 Tab 键在多个输入框间切换，点击侧边栏模板名称可快速定位到对应卡片</p>
                 </div>
               </div>
             )}

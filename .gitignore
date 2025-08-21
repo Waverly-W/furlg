@@ -177,3 +177,6 @@ config.local.json
 # Test data
 test-data/
 mock-data/
+
+# docs
+docs/

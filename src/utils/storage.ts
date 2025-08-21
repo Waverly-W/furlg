@@ -49,7 +49,28 @@ export class StorageManager {
   static async getTemplates(): Promise<Template[]> {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEYS.TEMPLATES);
-      return result[STORAGE_KEYS.TEMPLATES] || DEFAULT_DATA.templates;
+      let templates = result[STORAGE_KEYS.TEMPLATES] || DEFAULT_DATA.templates;
+
+      // 数据迁移：为没有占位符列表的模板自动生成
+      let needsMigration = false;
+      templates = templates.map((template: Template) => {
+        if (!template.placeholders || template.placeholders.length === 0) {
+          needsMigration = true;
+          const { PlaceholderParser } = require('./placeholderParser');
+          return {
+            ...template,
+            placeholders: PlaceholderParser.generatePlaceholderListFromTemplate(template.urlPattern)
+          };
+        }
+        return template;
+      });
+
+      // 如果需要迁移，保存更新后的数据
+      if (needsMigration) {
+        await this.setTemplates(templates);
+      }
+
+      return templates;
     } catch (error) {
       console.error('获取模板失败:', error);
       return DEFAULT_DATA.templates;
@@ -177,42 +198,127 @@ export class StorageManager {
   }
 
   /**
-   * 添加搜索历史记录
+   * 获取特定占位符的搜索历史记录
    */
-  static async addSearchHistory(templateId: string, keyword: string): Promise<void> {
+  static async getPlaceholderSearchHistory(templateId: string, placeholderName: string): Promise<SearchHistory[]> {
     try {
       const allHistory = await this.getSearchHistory();
 
-      // 检查是否已存在相同的记录
+      // 过滤出指定模板和占位符的历史记录
+      return allHistory.filter(h =>
+        h.templateId === templateId &&
+        (h.placeholderName === placeholderName ||
+         // 向后兼容：如果没有placeholderName字段，且占位符是keyword，则包含该记录
+         (!h.placeholderName && placeholderName === 'keyword'))
+      );
+    } catch (error) {
+      console.error('获取占位符搜索历史失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 根据全局设置获取特定占位符的排序后搜索历史记录
+   */
+  static async getSortedPlaceholderSearchHistory(templateId: string, placeholderName: string): Promise<SearchHistory[]> {
+    try {
+      const history = await this.getPlaceholderSearchHistory(templateId, placeholderName);
+      const settings = await this.getGlobalSettings();
+      const sortType = settings.historySortType || 'time';
+
+      if (sortType === 'frequency') {
+        // 按使用频率排序（使用次数倒序，次数相同时按时间倒序）
+        return history.sort((a, b) => {
+          const aCount = a.usageCount || 1;
+          const bCount = b.usageCount || 1;
+          if (aCount !== bCount) {
+            return bCount - aCount;
+          }
+          return b.timestamp - a.timestamp;
+        });
+      } else {
+        // 按时间排序（时间倒序）
+        return history.sort((a, b) => b.timestamp - a.timestamp);
+      }
+    } catch (error) {
+      console.error('获取排序后的占位符搜索历史失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 添加搜索历史记录（向后兼容的单关键词版本）
+   */
+  static async addSearchHistory(templateId: string, keyword: string): Promise<void> {
+    // 默认使用 'keyword' 作为占位符名称以保持向后兼容
+    return this.addPlaceholderSearchHistory(templateId, 'keyword', keyword);
+  }
+
+  /**
+   * 添加特定占位符的搜索历史记录
+   */
+  static async addPlaceholderSearchHistory(templateId: string, placeholderName: string, keyword: string): Promise<void> {
+    try {
+      const allHistory = await this.getSearchHistory();
+
+      // 检查是否已存在相同的记录（模板ID + 占位符名称 + 关键词）
       const existingIndex = allHistory.findIndex(
-        h => h.templateId === templateId && h.keyword === keyword
+        h => h.templateId === templateId &&
+             h.keyword === keyword &&
+             (h.placeholderName === placeholderName ||
+              // 向后兼容：如果旧记录没有placeholderName且当前是keyword，则匹配
+              (!h.placeholderName && placeholderName === 'keyword'))
       );
 
       if (existingIndex >= 0) {
         // 更新时间戳和使用计数
         allHistory[existingIndex].timestamp = Date.now();
         allHistory[existingIndex].usageCount = (allHistory[existingIndex].usageCount || 1) + 1;
+        // 确保旧记录也有placeholderName字段
+        if (!allHistory[existingIndex].placeholderName) {
+          allHistory[existingIndex].placeholderName = placeholderName;
+        }
       } else {
         // 添加新记录
         const now = Date.now();
         const newHistory: SearchHistory = {
-          id: `${templateId}_${now}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `${templateId}_${placeholderName}_${now}_${Math.random().toString(36).substr(2, 9)}`,
           templateId,
           keyword,
           timestamp: now,
           usageCount: 1,
-          createdAt: now
+          createdAt: now,
+          placeholderName
         };
         allHistory.push(newHistory);
       }
 
-      // 按时间戳降序排序，保留最近的50条记录
+      // 按时间戳降序排序，保留最近的100条记录（增加限制以支持多占位符）
       allHistory.sort((a, b) => b.timestamp - a.timestamp);
-      const limitedHistory = allHistory.slice(0, 50);
+      const limitedHistory = allHistory.slice(0, 100);
 
       await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: limitedHistory });
     } catch (error) {
-      console.error('添加搜索历史失败:', error);
+      console.error('添加占位符搜索历史失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量添加多关键词搜索历史记录
+   */
+  static async addMultiKeywordSearchHistory(templateId: string, keywords: Record<string, string>): Promise<void> {
+    try {
+      // 为每个非空的关键词添加历史记录
+      const promises = Object.entries(keywords)
+        .filter(([_, value]) => value && value.trim())
+        .map(([placeholderName, keyword]) =>
+          this.addPlaceholderSearchHistory(templateId, placeholderName, keyword.trim())
+        );
+
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('批量添加多关键词搜索历史失败:', error);
       throw error;
     }
   }

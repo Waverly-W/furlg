@@ -10,6 +10,7 @@ interface SearchSuggestionsProps {
   onClose: () => void;
   visible: boolean;
   onEnterWithoutSelection?: () => void;
+  placeholderName?: string; // 新增：占位符名称，用于获取特定占位符的历史记录
 }
 
 export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
@@ -18,7 +19,8 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   onSelect,
   onClose,
   visible,
-  onEnterWithoutSelection
+  onEnterWithoutSelection,
+  placeholderName
 }) => {
   const [suggestions, setSuggestions] = useState<SearchHistory[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -32,7 +34,17 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
     try {
       setLoading(true);
-      const history = await StorageManager.getSortedSearchHistory(template.id);
+
+      // 根据是否有占位符名称来获取对应的历史记录
+      let history: SearchHistory[];
+      if (placeholderName) {
+        // 获取特定占位符的历史记录
+        history = await StorageManager.getSortedPlaceholderSearchHistory(template.id, placeholderName);
+      } else {
+        // 向后兼容：获取所有历史记录
+        history = await StorageManager.getSortedSearchHistory(template.id);
+      }
+
       const matches = SearchMatcher.fuzzyMatch(history, query, 8);
       setSuggestions(matches);
       setSelectedIndex(-1);
@@ -55,7 +67,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       setSuggestions([]);
       setSelectedIndex(-1);
     }
-  }, [template, query, visible]);
+  }, [template, query, visible, placeholderName]);
 
   // 监听Chrome存储变化，实现排序方式变更时的实时更新
   useEffect(() => {

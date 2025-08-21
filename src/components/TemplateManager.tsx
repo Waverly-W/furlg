@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import type { Template } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import type { Template, PlaceholderInfo, TemplatePlaceholderValidationResult } from '../types';
 import { StorageManager } from '../utils/storage';
 import { UrlBuilder } from '../utils/urlBuilder';
+import { PlaceholderParser } from '../utils/placeholderParser';
 import { LoadingSpinner, LoadingButton } from './LoadingSpinner';
-import { TemplateHistoryManager } from './TemplateHistoryManager';
+import { PlaceholderManager } from './PlaceholderManager';
 
 interface TemplateManagerProps {
   onTemplateSelect?: (template: Template) => void;
@@ -177,7 +178,79 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [placeholders, setPlaceholders] = useState<PlaceholderInfo[]>([]);
+  const [consistencyValidation, setConsistencyValidation] = useState<TemplatePlaceholderValidationResult>({
+    isValid: true,
+    errors: [],
+    missingInList: [],
+    missingInTemplate: [],
+    usedPlaceholders: []
+  });
+  const urlPatternRef = useRef<HTMLTextAreaElement>(null);
+
+  // 初始化占位符列表
+  useEffect(() => {
+    if (template) {
+      // 如果模板已有占位符列表，使用现有的
+      if (template.placeholders && template.placeholders.length > 0) {
+        setPlaceholders(template.placeholders);
+      } else {
+        // 否则从URL模板自动生成（数据迁移）
+        const generatedPlaceholders = PlaceholderParser.generatePlaceholderListFromTemplate(template.urlPattern);
+        setPlaceholders(generatedPlaceholders);
+      }
+    } else {
+      // 新建模板时初始化为空列表
+      setPlaceholders([]);
+    }
+  }, [template]);
+
+  // 监听URL模板和占位符列表变化，验证一致性
+  useEffect(() => {
+    if (formData.urlPattern.trim()) {
+      const validation = PlaceholderParser.validateTemplatePlaceholderConsistency(
+        formData.urlPattern,
+        placeholders
+      );
+      setConsistencyValidation(validation);
+    } else {
+      setConsistencyValidation({
+        isValid: true,
+        errors: [],
+        missingInList: [],
+        missingInTemplate: [],
+        usedPlaceholders: []
+      });
+    }
+  }, [formData.urlPattern, placeholders]);
+
+  // 插入占位符到URL模板
+  const handleInsertPlaceholder = (code: string) => {
+    const textarea = urlPatternRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const placeholder = `{${code}}`;
+
+    const newValue = formData.urlPattern.substring(0, start) +
+                     placeholder +
+                     formData.urlPattern.substring(end);
+
+    setFormData(prev => ({ ...prev, urlPattern: newValue }));
+
+    // 设置光标位置到插入的占位符之后
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
+    }, 0);
+  };
+
+  // 同步占位符列表
+  const handleSyncPlaceholders = () => {
+    const syncedPlaceholders = PlaceholderParser.syncPlaceholderList(formData.urlPattern, placeholders);
+    setPlaceholders(syncedPlaceholders);
+  };
 
   // 验证表单
   const validateForm = (): boolean => {
@@ -189,8 +262,13 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
 
     if (!formData.urlPattern.trim()) {
       newErrors.urlPattern = 'URL模板不能为空';
-    } else if (!UrlBuilder.validateTemplate(formData.urlPattern)) {
-      newErrors.urlPattern = 'URL模板格式无效，必须包含 {keyword} 占位符';
+    } else if (!consistencyValidation.isValid) {
+      newErrors.urlPattern = consistencyValidation.errors.join('; ');
+    }
+
+    // 验证占位符列表
+    if (placeholders.length === 0) {
+      newErrors.placeholders = '至少需要定义一个占位符';
     }
 
     setErrors(newErrors);
@@ -211,6 +289,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
         name: formData.name.trim(),
         urlPattern: formData.urlPattern.trim(),
         domain: formData.domain.trim() || undefined,
+        placeholders: placeholders,
         createdAt: template?.createdAt || Date.now(),
         updatedAt: Date.now()
       };
@@ -225,12 +304,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
     }
   };
 
-  // 应用预设关键词到表单
-  const handleApplyKeyword = (keyword: string) => {
-    // 这里可以将关键词应用到某个字段，比如作为测试关键词
-    // 或者可以显示一个提示，让用户知道可以使用这个关键词进行测试
-    alert(`预设关键词: "${keyword}"\n您可以使用此关键词测试模板的搜索功能。`);
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -260,20 +334,54 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
             <label className="block text-sm font-medium text-gray-700 mb-1">
               URL模板 *
             </label>
-            <input
-              type="text"
+            <textarea
+              ref={urlPatternRef}
               value={formData.urlPattern}
               onChange={(e) => setFormData({ ...formData, urlPattern: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
                 errors.urlPattern ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="https://www.bing.com/search?q={keyword}"
+              placeholder="例如：https://www.bing.com/search?q={query}&cat={category}"
+              rows={3}
             />
             {errors.urlPattern && <p className="text-red-500 text-xs mt-1">{errors.urlPattern}</p>}
+
+            {/* 一致性验证提示 */}
+            {!consistencyValidation.isValid && (
+              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-red-600 text-sm font-medium">占位符不一致：</p>
+                    <ul className="text-red-600 text-xs mt-1 list-disc list-inside">
+                      {consistencyValidation.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <button
+                    onClick={handleSyncPlaceholders}
+                    className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    同步占位符
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="text-gray-500 text-xs mt-1">
-              使用 {'{keyword}'} 作为搜索关键词的占位符
+              在下方的占位符管理区域添加占位符，然后在URL模板中使用 {'{占位符代码}'} 格式引用。
             </p>
           </div>
+
+          {/* 占位符管理区域 */}
+          <PlaceholderManager
+            placeholders={placeholders}
+            onPlaceholdersChange={setPlaceholders}
+            onInsertPlaceholder={handleInsertPlaceholder}
+            template={template}
+          />
+
+          {errors.placeholders && <p className="text-red-500 text-xs">{errors.placeholders}</p>}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -291,19 +399,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
             </p>
           </div>
 
-          {/* 关键词预设管理 - 仅在编辑现有模板时显示 */}
-          {template && (
-            <TemplateHistoryManager
-              key={historyRefreshKey}
-              template={template}
-              onHistoryChange={() => {
-                // 关键词预设变更时刷新组件
-                setHistoryRefreshKey(prev => prev + 1);
-              }}
-              onApplyKeyword={handleApplyKeyword}
-              className="mt-4"
-            />
-          )}
+
         </div>
 
         <div className="flex gap-3 mt-6">
