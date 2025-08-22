@@ -20,3 +20,68 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* 智能瀑布流布局样式 */
+.smart-masonry-grid {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* 智能瀑布流项目样式 */
+.smart-masonry-item {
+  position: absolute;
+  transition: all 0.3s ease-out;
+}
+
+/* 搜索卡片样式 */
+.search-card {
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+}
+
+/* 卡片动画效果 */
+.search-card {
+  transition: all 0.2s ease-in-out;
+  transform: translateZ(0); /* 启用硬件加速 */
+}
+
+.search-card:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* 加载状态优化 */
+.search-card.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 高亮状态 */
+.search-card.highlighted {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* 防止卡片内容溢出 */
+.search-card * {
+  box-sizing: border-box;
+}
+
+/* 确保输入框不会导致卡片宽度溢出 */
+.search-card input {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* 确保按钮不会导致布局问题 */
+.search-card button {
+  flex-shrink: 0;
+}
+
+/* 智能瀑布流性能优化 */
+.smart-masonry-grid {
+  contain: layout style;
+  will-change: auto;
+}

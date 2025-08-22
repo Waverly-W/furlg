@@ -3,6 +3,7 @@ import type { Template, PlaceholderInfo, MultiKeywordValues } from '../types';
 import { PlaceholderParser } from '../utils/placeholderParser';
 import { SearchSuggestions } from './SearchSuggestions';
 import { LoadingButton } from './LoadingSpinner';
+import { SearchCardBase } from './SearchCardBase';
 
 interface MultiKeywordSearchCardProps {
   template: Template;
@@ -11,7 +12,7 @@ interface MultiKeywordSearchCardProps {
   className?: string;
 }
 
-export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = ({
+export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = React.memo(({
   template,
   onSearch,
   isSearching = false,
@@ -103,75 +104,84 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = ({
   });
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow ${className}`}>
-      {/* 模板标题 */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-        {template.domain && (
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-            {template.domain}
-          </span>
-        )}
+    <SearchCardBase
+      title={template.name}
+      domain={template.domain}
+      className={`search-card ${className}`}
+    >
+      <div className="flex flex-col h-full">
+        {/* 输入区域 */}
+        <div className="flex-1 space-y-3 mb-4">
+          {placeholders.map((placeholder, index) => {
+            const isLastPlaceholder = index === placeholders.length - 1;
+
+            return (
+              <div key={placeholder.code} className="relative">
+                {/* 标签 */}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {placeholder.name}
+                  {placeholder.required !== false && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </label>
+
+                {/* 输入框和搜索按钮 */}
+                <div className={isLastPlaceholder ? "flex space-x-2" : "relative"}>
+                  <div className="flex-1 relative">
+                    <input
+                      ref={(el) => (inputRefs.current[placeholder.code] = el)}
+                      type="text"
+                      value={keywordValues[placeholder.code] || ''}
+                      onChange={(e) => handleInputChange(placeholder.code, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(placeholder.code, e)}
+                      onFocus={() => setActiveSuggestions(placeholder.code)}
+                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
+                      placeholder={placeholder.placeholder || `请输入${placeholder.name}`}
+                      disabled={isSearching}
+                    />
+
+                    {/* 搜索建议 */}
+                    <SearchSuggestions
+                      template={template}
+                      query={keywordValues[placeholder.code] || ''}
+                      onSelect={(keyword) => handleSuggestionSelect(placeholder.code, keyword)}
+                      onClose={() => setActiveSuggestions(null)}
+                      visible={activeSuggestions === placeholder.code}
+                      placeholderName={placeholder.code}
+                      onEnterWithoutSelection={() => {
+                        setActiveSuggestions(null);
+                        handleSearch();
+                      }}
+                    />
+                  </div>
+
+                  {/* 搜索按钮 - 只在最后一个输入框旁边显示 */}
+                  {isLastPlaceholder && (
+                    <LoadingButton
+                      loading={isSearching}
+                      disabled={!canSearch}
+                      onClick={handleSearch}
+                      className="px-3.5 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </LoadingButton>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-
-      {/* 多关键词输入区域 */}
-      <div className="space-y-3 mb-4">
-        {placeholders.map((placeholder, index) => (
-          <div key={placeholder.code} className="relative">
-            {/* 标签 */}
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {placeholder.name}
-              {placeholder.required !== false && (
-                <span className="text-red-500 ml-1">*</span>
-              )}
-            </label>
-
-            {/* 输入框 */}
-            <div className="relative">
-              <input
-                ref={(el) => (inputRefs.current[placeholder.code] = el)}
-                type="text"
-                value={keywordValues[placeholder.code] || ''}
-                onChange={(e) => handleInputChange(placeholder.code, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(placeholder.code, e)}
-                onFocus={() => setActiveSuggestions(placeholder.code)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
-                placeholder={placeholder.placeholder || `请输入${placeholder.name}`}
-                disabled={isSearching}
-              />
-
-              {/* 搜索建议 */}
-              <SearchSuggestions
-                template={template}
-                query={keywordValues[placeholder.code] || ''}
-                onSelect={(keyword) => handleSuggestionSelect(placeholder.code, keyword)}
-                onClose={() => setActiveSuggestions(null)}
-                visible={activeSuggestions === placeholder.code}
-                placeholderName={placeholder.code}
-                onEnterWithoutSelection={() => {
-                  setActiveSuggestions(null);
-                  handleSearch();
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 搜索按钮 */}
-      <div className="flex justify-end">
-        <LoadingButton
-          loading={isSearching}
-          disabled={!canSearch}
-          onClick={handleSearch}
-          className="px-4 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          搜索
-        </LoadingButton>
-      </div>
-    </div>
+    </SearchCardBase>
   );
-};
+}, (prevProps, nextProps) => {
+  // 优化渲染性能
+  return (
+    prevProps.template.id === nextProps.template.id &&
+    prevProps.template.updatedAt === nextProps.template.updatedAt &&
+    prevProps.isSearching === nextProps.isSearching &&
+    prevProps.className === nextProps.className
+  );
+});

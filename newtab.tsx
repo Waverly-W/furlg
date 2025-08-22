@@ -4,6 +4,7 @@ import { StorageManager } from "./src/utils/storage";
 import { UrlBuilder } from "./src/utils/urlBuilder";
 import { TemplateManager } from "./src/components/TemplateManager";
 import { SmartSearchCard } from "./src/components/SmartSearchCard";
+import { MasonryGrid } from "./src/components/MasonryGrid";
 import { ToastContainer, useToast } from "./src/components/Toast";
 import { LoadingSpinner, LoadingButton } from "./src/components/LoadingSpinner";
 import { SettingsModal } from "./src/components/SettingsModal";
@@ -286,24 +287,26 @@ const NewTabPage = () => {
               </div>
             ) : (
               <div className="px-6 md:px-8 py-8">
-                {/* 模板卡片网格 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                  {templates.map((template) => (
-                    <div
-                      key={template.id}
-                      ref={(el) => (cardRefs.current[template.id] = el)}
-                      className={`transition-all duration-300 ${
-                        activeTemplateId === template.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-                      }`}
-                    >
-                      <SmartSearchCard
-                        template={template}
-                        onSearchSingle={handleSingleKeywordSearch}
-                        onSearchMultiple={handleMultiKeywordSearch}
-                        isSearching={searchingTemplates[template.id] || false}
-                      />
-                    </div>
-                  ))}
+                {/* 模板卡片瀑布流 */}
+                <div className="max-w-7xl mx-auto">
+                  <MasonryGrid>
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        ref={(el) => (cardRefs.current[template.id] = el)}
+                        className={`transition-all duration-300 ${
+                          activeTemplateId === template.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                        }`}
+                      >
+                        <SmartSearchCard
+                          template={template}
+                          onSearchSingle={handleSingleKeywordSearch}
+                          onSearchMultiple={handleMultiKeywordSearch}
+                          isSearching={searchingTemplates[template.id] || false}
+                        />
+                      </div>
+                    ))}
+                  </MasonryGrid>
                 </div>
 
                 {/* 使用提示 */}

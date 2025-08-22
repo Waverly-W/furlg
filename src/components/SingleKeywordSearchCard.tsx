@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import type { Template } from '../types';
 import { SearchSuggestions } from './SearchSuggestions';
 import { LoadingButton } from './LoadingSpinner';
+import { SearchCardBase } from './SearchCardBase';
 
 interface SingleKeywordSearchCardProps {
   template: Template;
@@ -10,7 +11,7 @@ interface SingleKeywordSearchCardProps {
   className?: string;
 }
 
-export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = ({
+export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = React.memo(({
   template,
   onSearch,
   isSearching = false,
@@ -59,60 +60,64 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = (
   };
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow ${className}`}>
-      {/* 模板标题 */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-        {template.domain && (
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-            {template.domain}
-          </span>
-        )}
-      </div>
+    <SearchCardBase
+      title={template.name}
+      domain={template.domain}
+      className={`search-card ${className}`}
+    >
+      <div className="flex flex-col h-full">
+        {/* 输入区域 */}
+        <div className="flex-1 mb-4">
+          <div className="flex space-x-2">
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={keyword}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setShowSuggestions(true)}
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
+                placeholder="输入搜索关键词..."
+                disabled={isSearching}
+              />
 
-      {/* 搜索输入框和按钮 */}
-      <div className="relative">
-        <div className="flex space-x-2">
-          <div className="flex-1 relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={keyword}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
-              placeholder="输入搜索关键词..."
-              disabled={isSearching}
-            />
+              {/* 搜索建议 */}
+              <SearchSuggestions
+                template={template}
+                query={keyword}
+                onSelect={handleSuggestionSelect}
+                onClose={() => setShowSuggestions(false)}
+                visible={showSuggestions}
+                placeholderName="keyword"
+                onEnterWithoutSelection={() => {
+                  setShowSuggestions(false);
+                  handleSearch();
+                }}
+              />
+            </div>
 
-            {/* 搜索建议 */}
-            <SearchSuggestions
-              template={template}
-              query={keyword}
-              onSelect={handleSuggestionSelect}
-              onClose={() => setShowSuggestions(false)}
-              visible={showSuggestions}
-              placeholderName="keyword"
-              onEnterWithoutSelection={() => {
-                setShowSuggestions(false);
-                handleSearch();
-              }}
-            />
+            <LoadingButton
+              loading={isSearching}
+              disabled={!keyword.trim()}
+              onClick={handleSearch}
+              className="px-3.5 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </LoadingButton>
           </div>
-
-          <LoadingButton
-            loading={isSearching}
-            disabled={!keyword.trim()}
-            onClick={handleSearch}
-            className="px-3.5 py-2.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </LoadingButton>
         </div>
       </div>
-    </div>
+    </SearchCardBase>
   );
-};
+}, (prevProps, nextProps) => {
+  // 优化渲染性能
+  return (
+    prevProps.template.id === nextProps.template.id &&
+    prevProps.template.updatedAt === nextProps.template.updatedAt &&
+    prevProps.isSearching === nextProps.isSearching &&
+    prevProps.className === nextProps.className
+  );
+});

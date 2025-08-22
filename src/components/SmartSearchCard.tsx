@@ -3,6 +3,7 @@ import type { Template, MultiKeywordValues } from '../types';
 import { PlaceholderParser } from '../utils/placeholderParser';
 import { SingleKeywordSearchCard } from './SingleKeywordSearchCard';
 import { MultiKeywordSearchCard } from './MultiKeywordSearchCard';
+import { SearchCardBase } from './SearchCardBase';
 
 interface SmartSearchCardProps {
   template: Template;
@@ -12,7 +13,7 @@ interface SmartSearchCardProps {
   className?: string;
 }
 
-export const SmartSearchCard: React.FC<SmartSearchCardProps> = ({
+export const SmartSearchCard: React.FC<SmartSearchCardProps> = React.memo(({
   template,
   onSearchSingle,
   onSearchMultiple,
@@ -26,18 +27,21 @@ export const SmartSearchCard: React.FC<SmartSearchCardProps> = ({
   // 如果没有占位符列表，显示错误状态
   if (placeholders.length === 0) {
     return (
-      <div className={`bg-white rounded-xl shadow-sm border border-red-200 p-6 ${className}`}>
-        <div className="text-center">
+      <SearchCardBase
+        title={template.name}
+        domain={template.domain}
+        className={`search-card border-red-200 ${className}`}
+      >
+        <div className="text-center flex-1 flex flex-col justify-center">
           <div className="text-red-500 mb-2">
             <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{template.name}</h3>
           <p className="text-red-600 text-sm">模板配置错误：缺少占位符定义</p>
           <p className="text-gray-500 text-xs mt-1">请在模板管理中重新配置此模板</p>
         </div>
-      </div>
+      </SearchCardBase>
     );
   }
 
@@ -61,4 +65,12 @@ export const SmartSearchCard: React.FC<SmartSearchCardProps> = ({
       />
     );
   }
-};
+}, (prevProps, nextProps) => {
+  // 自定义比较函数，优化渲染性能
+  return (
+    prevProps.template.id === nextProps.template.id &&
+    prevProps.template.updatedAt === nextProps.template.updatedAt &&
+    prevProps.isSearching === nextProps.isSearching &&
+    prevProps.className === nextProps.className
+  );
+});
