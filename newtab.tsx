@@ -22,6 +22,7 @@ const NewTabPage = () => {
   const [topHintSubtitle, setTopHintSubtitle] = useState('选择任意模板开始搜索');
   const [openBehavior, setOpenBehavior] = useState<'current' | 'newtab'>('newtab');
   const [sidebarWidth, setSidebarWidth] = useState(256); // 默认侧边栏宽度
+  const [sidebarVisible, setSidebarVisible] = useState(true); // 侧边栏显示状态
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toast = useToast();
 
@@ -53,6 +54,7 @@ const NewTabPage = () => {
       setTopHintTitle(s.topHintTitle);
       setTopHintSubtitle(s.topHintSubtitle);
       setSidebarWidth(s.sidebarWidth || 256);
+      setSidebarVisible(s.sidebarVisible !== false); // 默认显示
     })();
   }, []);
 
@@ -102,6 +104,23 @@ const NewTabPage = () => {
       }
     };
   }, []);
+
+  // 切换侧边栏显示/隐藏
+  const toggleSidebar = async () => {
+    const newVisible = !sidebarVisible;
+    setSidebarVisible(newVisible);
+
+    // 保存到存储
+    try {
+      const currentSettings = await StorageManager.getGlobalSettings();
+      await StorageManager.saveGlobalSettings({
+        ...currentSettings,
+        sidebarVisible: newVisible
+      });
+    } catch (error) {
+      console.error('保存侧边栏状态失败:', error);
+    }
+  };
 
   // 处理单关键词搜索
   const handleSingleKeywordSearch = async (template: Template, keyword: string) => {
@@ -208,11 +227,17 @@ const NewTabPage = () => {
         <div className="flex h-screen overflow-hidden">
           {/* 侧边栏 */}
           <div
-            className="bg-white/95 backdrop-blur border-r border-gray-200 shadow-sm flex flex-col h-full"
-            style={{ width: `${sidebarWidth}px` }}
+            className="bg-white/95 backdrop-blur border-r border-gray-200 shadow-sm flex flex-col h-full sidebar-width-transition overflow-hidden"
+            style={{
+              width: sidebarVisible ? `${sidebarWidth}px` : '0px',
+              minWidth: sidebarVisible ? `${sidebarWidth}px` : '0px',
+              opacity: sidebarVisible ? 1 : 0
+            }}
           >
-            {/* 侧边栏头部 */}
-            <div className="p-6 border-b border-gray-200">
+            {sidebarVisible && (
+              <>
+                {/* 侧边栏头部 */}
+                <div className="p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg shadow-sm bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -262,7 +287,19 @@ const NewTabPage = () => {
 
             {/* 侧边栏底部设置按钮 - 固定在底部 */}
             <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white/95 backdrop-blur">
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
+                {/* 侧边栏切换按钮 */}
+                <button
+                  onClick={toggleSidebar}
+                  className="w-10 h-10 rounded-full bg-white text-gray-600 hover:bg-gray-50 active:bg-gray-100 shadow-sm border border-gray-200 flex items-center justify-center transition-colors"
+                  title="隐藏侧边栏"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                {/* 设置按钮 */}
                 <button
                   onClick={() => setSettingsOpen(true)}
                   className="w-10 h-10 rounded-full bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 shadow-sm flex items-center justify-center transition-colors"
@@ -275,10 +312,29 @@ const NewTabPage = () => {
                 </button>
               </div>
             </div>
+              </>
+            )}
           </div>
 
+          {/* 侧边栏隐藏时的显示按钮 */}
+          {!sidebarVisible && (
+            <div className="fixed left-0 top-1/2 transform -translate-y-1/2 z-50">
+              <button
+                onClick={toggleSidebar}
+                className="w-10 h-12 bg-white text-gray-600 hover:bg-gray-50 active:bg-gray-100 shadow-lg border border-gray-200 rounded-r-lg flex items-center justify-center transition-all duration-200 hover:w-12"
+                title="显示侧边栏"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* 主内容区域 */}
-          <div className="flex-1 h-full overflow-y-auto">
+          <div className={`flex-1 h-full overflow-y-auto transition-all duration-300 ease-out main-content-expanding ${
+            sidebarVisible ? '' : 'ml-0'
+          }`}>
             {/* 顶部提示条（受全局设置控制） */}
             {topHintEnabled && (
               <div className="sticky top-0 z-10 backdrop-blur bg-gray-50/80 border-b border-gray-200">
@@ -302,7 +358,7 @@ const NewTabPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="px-6 md:px-8 py-8">
+              <div className="px-6 md:px-8 py-8 pb-16">
                 {/* 模板卡片瀑布流 */}
                 <div className="max-w-7xl mx-auto">
                   <MasonryGrid>

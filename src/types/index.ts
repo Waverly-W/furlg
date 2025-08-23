@@ -65,6 +65,7 @@ export interface GlobalSettings {
   topHintSubtitle: string         // 顶部提示副标题
   historySortType?: HistorySortType // 历史记录排序方式（可选，用于向后兼容）
   sidebarWidth?: number           // 侧边栏宽度（像素），默认256px
+  sidebarVisible?: boolean        // 侧边栏是否可见，默认true
 }
 
 export interface StorageData {

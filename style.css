@@ -26,8 +26,9 @@
   position: relative;
   width: 100%;
   overflow: visible; /* 改为visible，确保阴影可以显示 */
-  /* 确保底部有足够空间显示卡片阴影 */
-  padding-bottom: 40px; /* 增加到40px，确保阴影完全可见 */
+  /* 确保底部有足够空间显示卡片阴影和完整内容 */
+  padding-bottom: 80px; /* 增加到80px，确保最后一行卡片完全可见 */
+  min-height: 100%; /* 确保容器至少占满父容器高度 */
 }
 
 /* 智能瀑布流项目样式 */
@@ -159,6 +160,83 @@ div[class*="search-card"]:hover {
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* 侧边栏切换动画优化 */
+.sidebar-container {
+  transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 侧边栏滑入动画 */
+.sidebar-slide-in {
+  animation: slideInFromLeft 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* 侧边栏滑出动画 */
+.sidebar-slide-out {
+  animation: slideOutToLeft 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+/* 主内容区域动画 */
+.main-content-expanding {
+  transition: margin-left 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              flex 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  flex: 1;
+  min-width: 0; /* 允许flex项目收缩到内容宽度以下 */
+}
+
+/* 平滑的宽度过渡 */
+.width-transition {
+  transition: width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 确保flex容器正确工作 */
+.flex-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 侧边栏宽度过渡 */
+.sidebar-width-transition {
+  transition: width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              min-width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 侧边栏显示按钮悬停效果 */
+.sidebar-show-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-show-button:hover {
+  width: 3rem; /* 48px */
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 /* 滑块样式 */

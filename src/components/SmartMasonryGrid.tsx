@@ -133,18 +133,23 @@ export const SmartMasonryGrid: React.FC<SmartMasonryGridProps> = ({
   // 计算容器总高度
   const containerHeight = useMemo(() => {
     if (layoutItems.length === 0) return 0;
-    
+
+    // 重新计算每列的最终高度
     const columnHeights = new Array(columnCount).fill(0);
-    layoutItems.forEach(({ top, item }) => {
+    layoutItems.forEach(({ top, item, left }) => {
       const itemHeight = item.height || 300;
       const bottom = top + itemHeight;
-      const column = Math.floor(top / (actualColumnWidth + columnGutter));
-      if (column < columnCount) {
+      // 根据left位置计算正确的列索引
+      const column = Math.floor(left / (actualColumnWidth + columnGutter));
+      if (column >= 0 && column < columnCount) {
         columnHeights[column] = Math.max(columnHeights[column], bottom);
       }
     });
-    
-    return Math.max(...columnHeights);
+
+    // 添加额外的底部间距，确保最后一行卡片完全可见
+    const maxHeight = Math.max(...columnHeights);
+    const extraPadding = 60; // 增加底部间距
+    return maxHeight + extraPadding;
   }, [layoutItems, columnCount, actualColumnWidth, columnGutter]);
 
   // 高度测量回调
