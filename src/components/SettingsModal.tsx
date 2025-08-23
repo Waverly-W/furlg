@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from 'react'
 import { StorageManager } from '../utils/storage'
 import type { GlobalSettings, OpenBehavior, Template, HistorySortType } from '../types'
 import { TemplateManagerDraft } from './TemplateManagerDraft'
+import { SidebarUtils } from '../utils/sidebarUtils'
 
 interface SettingsModalProps {
   open: boolean
   onClose: () => void
   onApply?: (settings: GlobalSettings) => void
   onTemplatesSaved?: (templates: Template[]) => void
+  templates?: Template[] // 用于计算侧边栏最小宽度
+  onSidebarWidthChange?: (width: number) => void // 实时预览回调
 }
 
 const defaultSettings: GlobalSettings = {
@@ -15,15 +18,29 @@ const defaultSettings: GlobalSettings = {
   topHintEnabled: true,
   topHintTitle: '搜索模板',
   topHintSubtitle: '选择任意模板开始搜索',
-  historySortType: 'time'
+  historySortType: 'time',
+  sidebarWidth: SidebarUtils.DEFAULT_WIDTH
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onApply, onTemplatesSaved }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  open,
+  onClose,
+  onApply,
+  onTemplatesSaved,
+  templates = [],
+  onSidebarWidthChange
+}) => {
   const [draftTemplates, setDraftTemplates] = useState<Template[]>([])
 
   const [activeTab, setActiveTab] = useState<'global' | 'templates'>('global')
   const [settings, setSettings] = useState<GlobalSettings>(defaultSettings)
   const dialogRef = useRef<HTMLDivElement>(null)
+
+  // 侧边栏宽度相关状态
+  const [sidebarWidthRange, setSidebarWidthRange] = useState(() =>
+    SidebarUtils.getWidthRange(templates)
+  )
+  const [isMobile, setIsMobile] = useState(SidebarUtils.isMobile())
 
   // 加载全局设置
   useEffect(() => {
@@ -36,6 +53,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onA
       setDraftTemplates(t)
     })()
   }, [open])
+
+  // 监听模板变化，更新侧边栏宽度范围
+  useEffect(() => {
+    const newRange = SidebarUtils.getWidthRange(templates);
+    setSidebarWidthRange(newRange);
+
+    // 如果当前设置的宽度超出了新的范围，自动调整
+    if (settings.sidebarWidth) {
+      const validatedWidth = SidebarUtils.validateWidth(settings.sidebarWidth, templates);
+      if (validatedWidth !== settings.sidebarWidth) {
+        setSettings(prev => ({ ...prev, sidebarWidth: validatedWidth }));
+      }
+    }
+  }, [templates, settings.sidebarWidth]);
+
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      const newIsMobile = SidebarUtils.isMobile();
+      setIsMobile(newIsMobile);
+
+      if (!newIsMobile) {
+        const newRange = SidebarUtils.getWidthRange(templates);
+        setSidebarWidthRange(newRange);
+
+        // 重新验证当前宽度
+        if (settings.sidebarWidth) {
+          const validatedWidth = SidebarUtils.validateWidth(settings.sidebarWidth, templates);
+          if (validatedWidth !== settings.sidebarWidth) {
+            setSettings(prev => ({ ...prev, sidebarWidth: validatedWidth }));
+          }
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [templates, settings.sidebarWidth]);
 
   // 关闭事件: ESC 与点击遮罩
   useEffect(() => {
@@ -59,6 +114,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onA
   const setTopHintTitle = (v: string) => setSettings((p) => ({ ...p, topHintTitle: v }))
   const setTopHintSubtitle = (v: string) => setSettings((p) => ({ ...p, topHintSubtitle: v }))
   const setHistorySortType = (v: HistorySortType) => setSettings((p) => ({ ...p, historySortType: v }))
+
+  // 侧边栏宽度设置
+  const setSidebarWidth = (width: number) => {
+    const validatedWidth = SidebarUtils.validateWidth(width, templates);
+    setSettings((p) => ({ ...p, sidebarWidth: validatedWidth }));
+
+    // 实时预览
+    if (onSidebarWidthChange) {
+      onSidebarWidthChange(validatedWidth);
+    }
+  }
 
   if (!open) return null
 
@@ -143,6 +209,92 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, onA
                         onChange={(e) => setTopHintEnabled(e.target.checked)}
                       />
                     </label>
+
+                    {/* 侧边栏宽度设置 - 仅在桌面端显示 */}
+                    {!isMobile && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">侧边栏宽度</span>
+                          <span className="text-xs text-gray-500">
+                            {settings.sidebarWidth || sidebarWidthRange.default}px
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* 滑块控件 */}
+                          <input
+                            type="range"
+                            min={sidebarWidthRange.min}
+                            max={sidebarWidthRange.max}
+                            step="1"
+                            value={settings.sidebarWidth || sidebarWidthRange.default}
+                            onChange={(e) => setSidebarWidth(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                          />
+
+                          {/* 范围提示 */}
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>最小: {sidebarWidthRange.min}px</span>
+                            <span>最大: {sidebarWidthRange.max}px</span>
+                          </div>
+
+                          {/* 快捷设置按钮 */}
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setSidebarWidth(sidebarWidthRange.min)}
+                              className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                            >
+                              最小
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSidebarWidth(sidebarWidthRange.default)}
+                              className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                            >
+                              默认
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSidebarWidth(sidebarWidthRange.suggested)}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              推荐
+                            </button>
+                          </div>
+
+                          {/* 说明文字 */}
+                          <p className="text-xs text-gray-500 mt-2">
+                            最小宽度根据模板名称长度自动计算，确保所有内容都能完整显示
+                          </p>
+
+                          {/* 调试信息 - 开发时可以启用 */}
+                          {process.env.NODE_ENV === 'development' && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-gray-400 cursor-pointer">调试信息</summary>
+                              <div className="text-xs text-gray-400 mt-1 space-y-1">
+                                {(() => {
+                                  const details = SidebarUtils.getWidthCalculationDetails(templates);
+                                  return (
+                                    <div className="font-mono">
+                                      <div>模板数量: {details.templateCount}</div>
+                                      <div>最长模板: "{details.longestTemplateName}" ({details.longestTemplateWidth.toFixed(1)}px)</div>
+                                      <div>平均宽度: {details.averageTemplateWidth.toFixed(1)}px</div>
+                                      <div>计算最小宽度: {details.calculatedMinWidth.toFixed(1)}px</div>
+                                      <div>最终最小宽度: {details.finalMinWidth}px</div>
+                                      <div>推荐宽度: {details.suggestedWidth}px</div>
+                                      <div className="mt-1 text-gray-500">
+                                        组成: {details.breakdown.paddingLeft} + {details.breakdown.iconWidth} + {details.breakdown.iconMargin} + {details.breakdown.textWidth.toFixed(1)} + {details.breakdown.paddingRight} + {details.breakdown.scrollbarWidth} + {details.breakdown.extraPadding}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <input

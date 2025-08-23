@@ -1,4 +1,5 @@
 import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType } from "../types";
+import { SidebarUtils } from "./sidebarUtils";
 
 // 存储键名常量
 const STORAGE_KEYS = {
@@ -16,7 +17,8 @@ const DEFAULT_DATA: StorageData = {
     topHintEnabled: true,
     topHintTitle: '搜索模板',
     topHintSubtitle: '选择任意模板开始搜索',
-    historySortType: 'time'
+    historySortType: 'time',
+    sidebarWidth: SidebarUtils.DEFAULT_WIDTH
   }
 };
 

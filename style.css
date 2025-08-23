@@ -25,31 +25,42 @@
 .smart-masonry-grid {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: visible; /* 改为visible，确保阴影可以显示 */
+  /* 确保底部有足够空间显示卡片阴影 */
+  padding-bottom: 40px; /* 增加到40px，确保阴影完全可见 */
 }
 
 /* 智能瀑布流项目样式 */
 .smart-masonry-item {
   position: absolute;
-  transition: all 0.3s ease-out;
+  transition: left 0.3s ease-out, top 0.3s ease-out, width 0.3s ease-out;
+  /* 确保不影响子元素的样式 */
+  transform: none;
+  z-index: auto;
 }
 
-/* 搜索卡片样式 */
+/* 确保瀑布流项目内的搜索卡片样式不受影响 */
+.smart-masonry-item .search-card {
+  position: relative;
+  z-index: 1;
+}
+
+/* 搜索卡片统一样式 */
 .search-card {
   width: 100%;
   box-sizing: border-box;
   display: block;
-}
-
-/* 卡片动画效果 */
-.search-card {
-  transition: all 0.2s ease-in-out;
+  /* 统一的基础阴影 - 覆盖Tailwind默认值 */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+  /* 统一的过渡效果 */
+  transition: all 0.2s ease-in-out !important;
   transform: translateZ(0); /* 启用硬件加速 */
 }
 
+/* 统一的悬停效果 */
 .search-card:hover {
-  transform: translateY(-2px) translateZ(0);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px) translateZ(0) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* 加载状态优化 */
@@ -80,8 +91,77 @@
   flex-shrink: 0;
 }
 
+/* 强制统一所有搜索卡片的阴影效果 - 覆盖所有可能的冲突 */
+.search-card,
+.smart-masonry-item .search-card,
+div[class*="search-card"] {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.search-card:hover,
+.smart-masonry-item .search-card:hover,
+div[class*="search-card"]:hover {
+  transform: translateY(-2px) translateZ(0) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 防止瀑布流布局的transform影响卡片的hover效果 */
+.smart-masonry-item:hover {
+  transform: none !important;
+}
+
+/* 确保卡片在不同高度下都有一致的阴影 */
+.search-card[style*="height"] {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+.search-card[style*="height"]:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
 /* 智能瀑布流性能优化 */
 .smart-masonry-grid {
   contain: layout style;
   will-change: auto;
+}
+
+/* 滑块样式 */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #2563eb;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.slider::-webkit-slider-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #e5e7eb;
+}
+
+.slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #e5e7eb;
+  border: none;
 }

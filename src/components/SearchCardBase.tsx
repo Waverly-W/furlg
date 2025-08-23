@@ -15,8 +15,7 @@ export const SearchCardBase: React.FC<SearchCardBaseProps> = ({
 }) => {
   return (
     <div className={`
-      bg-white rounded-xl shadow-sm border border-gray-200 
-      hover:shadow-md transition-all duration-200
+      bg-white rounded-xl border border-gray-200
       flex flex-col h-full
       ${className}
     `}>
