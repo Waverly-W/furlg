@@ -126,6 +126,41 @@ div[class*="search-card"]:hover {
   will-change: auto;
 }
 
+/* 页面布局优化 */
+.page-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 侧边栏布局优化 */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-template-list {
+  flex: 1;
+  min-height: 0; /* 关键：允许flex子项收缩 */
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  flex-shrink: 0; /* 防止底部按钮被压缩 */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #e5e7eb;
+}
+
+/* 主内容区域布局优化 */
+.main-content {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* 滑块样式 */
 .slider::-webkit-slider-thumb {
   appearance: none;

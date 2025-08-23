@@ -205,20 +205,29 @@ const NewTabPage = () => {
           />
         </div>
       ) : (
-        <div className="flex min-h-screen">
+        <div className="flex h-screen overflow-hidden">
           {/* 侧边栏 */}
           <div
-            className="bg-white/95 backdrop-blur border-r border-gray-200 shadow-sm flex flex-col"
+            className="bg-white/95 backdrop-blur border-r border-gray-200 shadow-sm flex flex-col h-full"
             style={{ width: `${sidebarWidth}px` }}
           >
             {/* 侧边栏头部 */}
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold tracking-wide text-gray-900">Furlg</h2>
-              <p className="text-xs text-gray-500 mt-1">快速搜索中心</p>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg shadow-sm bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold tracking-wide text-gray-900">Furlg</h2>
+                  <p className="text-xs text-gray-500 mt-1">快速搜索中心</p>
+                </div>
+              </div>
             </div>
 
             {/* 模板列表 */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
               {templates.length === 0 ? (
                 <div className="p-6 text-center">
                   <div className="text-gray-500 text-sm mb-4">还没有任何模板</div>
@@ -230,12 +239,12 @@ const NewTabPage = () => {
                   </button>
                 </div>
               ) : (
-                <div className="py-3 space-y-1">
+                <div className="py-3 space-y-1 px-3">
                   {templates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => scrollToTemplate(template.id)}
-                      className={`w-full text-left px-5 py-2.5 rounded-md transition-colors flex items-center gap-2 border border-transparent ${
+                      className={`w-full text-left px-2 py-2.5 rounded-md transition-colors flex items-center gap-2 border border-transparent ${
                         activeTemplateId === template.id
                           ? 'bg-blue-50/80 text-blue-700 border-blue-200'
                           : 'hover:bg-gray-50 text-gray-700 hover:text-gray-900'
@@ -251,23 +260,25 @@ const NewTabPage = () => {
               )}
             </div>
 
-            {/* 侧边栏底部设置按钮 */}
-            <div className="p-6 border-t border-gray-200 flex justify-center">
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="w-10 h-10 rounded-full bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 shadow-sm flex items-center justify-center transition-colors"
-                title="设置"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
+            {/* 侧边栏底部设置按钮 - 固定在底部 */}
+            <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white/95 backdrop-blur">
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setSettingsOpen(true)}
+                  className="w-10 h-10 rounded-full bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 shadow-sm flex items-center justify-center transition-colors"
+                  title="设置"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* 主内容区域 */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 h-full overflow-y-auto">
             {/* 顶部提示条（受全局设置控制） */}
             {topHintEnabled && (
               <div className="sticky top-0 z-10 backdrop-blur bg-gray-50/80 border-b border-gray-200">
