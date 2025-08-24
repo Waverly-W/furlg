@@ -17,6 +17,7 @@ export const SearchCardBase: React.FC<SearchCardBaseProps> = ({
     <div className={`
       bg-white rounded-xl border border-gray-200
       flex flex-col h-full
+      card-style-target
       ${className}
     `}>
       {/* 统一的标题区域 */}

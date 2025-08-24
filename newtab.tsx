@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import type { Template, MultiKeywordValues } from "./src/types";
+import type { Template, MultiKeywordValues, CardStyleSettings } from "./src/types";
 import { StorageManager } from "./src/utils/storage";
 import { UrlBuilder } from "./src/utils/urlBuilder";
 import { TemplateManager } from "./src/components/TemplateManager";
@@ -23,6 +23,35 @@ const NewTabPage = () => {
   const [openBehavior, setOpenBehavior] = useState<'current' | 'newtab'>('newtab');
   const [sidebarWidth, setSidebarWidth] = useState(256); // 默认侧边栏宽度
   const [sidebarVisible, setSidebarVisible] = useState(true); // 侧边栏显示状态
+  // 背景设置状态
+  const [backgroundImage, setBackgroundImage] = useState<string | undefined>(undefined);
+  const [backgroundMaskOpacity, setBackgroundMaskOpacity] = useState(30);
+  const [backgroundBlur, setBackgroundBlur] = useState(0);
+  // 卡片样式状态
+  const [cardStyle, setCardStyle] = useState<CardStyleSettings>({
+    cardSpacing: 20,
+    cardBackgroundColor: '#ffffff',
+    cardOpacity: 98,
+    cardMaskOpacity: 8,
+    cardBlurStrength: 16,
+    cardBorderEnabled: true,
+    cardBorderColor: '#e2e8f0',
+    cardBorderWidth: 1,
+    cardBorderStyle: 'solid',
+    titleFontSize: 17,
+    titleFontColor: '#1e293b',
+    titleFontWeight: '600',
+    searchBoxBorderRadius: 12,
+    searchBoxBackgroundColor: '#f8fafc',
+    searchBoxBorderColor: '#cbd5e1',
+    searchBoxFontSize: 15,
+    searchBoxTextColor: '#334155',
+    searchBoxPlaceholderColor: '#94a3b8',
+    searchButtonBorderRadius: 12,
+    searchButtonBackgroundColor: '#3b82f6',
+    searchButtonTextColor: '#ffffff',
+    searchButtonHoverColor: '#2563eb'
+  });
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const toast = useToast();
 
@@ -55,6 +84,14 @@ const NewTabPage = () => {
       setTopHintSubtitle(s.topHintSubtitle);
       setSidebarWidth(s.sidebarWidth || 256);
       setSidebarVisible(s.sidebarVisible !== false); // 默认显示
+      // 加载背景设置
+      setBackgroundImage(s.backgroundImage);
+      setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30);
+      setBackgroundBlur(s.backgroundBlur || 0);
+      // 加载卡片样式设置
+      if (s.cardStyle) {
+        setCardStyle(s.cardStyle);
+      }
     })();
   }, []);
 
@@ -82,6 +119,14 @@ const NewTabPage = () => {
           setTopHintEnabled(s.topHintEnabled);
           setTopHintTitle(s.topHintTitle);
           setTopHintSubtitle(s.topHintSubtitle);
+          // 更新背景设置
+          setBackgroundImage(s.backgroundImage);
+          setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30);
+          setBackgroundBlur(s.backgroundBlur || 0);
+          // 更新卡片样式设置
+          if (s.cardStyle) {
+            setCardStyle(s.cardStyle);
+          }
         })();
       }
 
@@ -120,6 +165,33 @@ const NewTabPage = () => {
     } catch (error) {
       console.error('保存侧边栏状态失败:', error);
     }
+  };
+
+  // 处理背景设置实时预览
+  const handleBackgroundChange = (backgroundSettings: {
+    backgroundImage?: string,
+    backgroundMaskOpacity?: number,
+    backgroundBlur?: number
+  }) => {
+    console.log('🎨 背景设置实时预览:', backgroundSettings);
+    if (backgroundSettings.backgroundImage !== undefined) {
+      console.log('📷 设置背景图片:', backgroundSettings.backgroundImage ? '有图片' : '无图片');
+      setBackgroundImage(backgroundSettings.backgroundImage);
+    }
+    if (backgroundSettings.backgroundMaskOpacity !== undefined) {
+      console.log('🎭 设置遮罩透明度:', backgroundSettings.backgroundMaskOpacity);
+      setBackgroundMaskOpacity(backgroundSettings.backgroundMaskOpacity);
+    }
+    if (backgroundSettings.backgroundBlur !== undefined) {
+      console.log('🌫️设置背景模糊:', backgroundSettings.backgroundBlur);
+      setBackgroundBlur(backgroundSettings.backgroundBlur);
+    }
+  };
+
+  // 处理卡片样式设置实时预览
+  const handleCardStyleChange = (newCardStyle: CardStyleSettings) => {
+    console.log('🎨 卡片样式实时预览:', newCardStyle);
+    setCardStyle(newCardStyle);
   };
 
   // 处理单关键词搜索
@@ -209,8 +281,144 @@ const NewTabPage = () => {
     );
   }
 
+  // 调试信息
+  console.log('🖼️ 当前背景状态:', {
+    backgroundImage: backgroundImage ? '有图片' : '无图片',
+    backgroundMaskOpacity,
+    backgroundBlur
+  });
+
+  // 生成动态CSS样式
+  const generateCardStyleCSS = () => {
+    return `
+      /* 卡片容器样式 - 使用更高的特异性 */
+      .smart-masonry-item .card-style-target {
+        margin: ${cardStyle.cardSpacing / 2}px !important;
+        background-color: ${cardStyle.cardBackgroundColor} !important;
+        opacity: ${cardStyle.cardOpacity / 100} !important;
+        backdrop-filter: blur(${cardStyle.cardBlurStrength}px) !important;
+        -webkit-backdrop-filter: blur(${cardStyle.cardBlurStrength}px) !important;
+        position: relative !important;
+        border-radius: 12px !important;
+        ${cardStyle.cardBorderEnabled
+          ? `border: ${cardStyle.cardBorderWidth}px ${cardStyle.cardBorderStyle} ${cardStyle.cardBorderColor} !important;`
+          : 'border: none !important;'
+        }
+      }
+
+      /* 卡片遮罩层 */
+      .smart-masonry-item .card-style-target::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, ${cardStyle.cardMaskOpacity / 100});
+        pointer-events: none;
+        z-index: 1;
+        border-radius: inherit;
+      }
+
+      /* 确保卡片内容在遮罩层之上 */
+      .smart-masonry-item .card-style-target > * {
+        position: relative;
+        z-index: 2;
+      }
+
+      /* 标题样式 */
+      .smart-masonry-item .card-style-target h3 {
+        font-size: ${cardStyle.titleFontSize}px !important;
+        color: ${cardStyle.titleFontColor} !important;
+        font-weight: ${cardStyle.titleFontWeight} !important;
+      }
+
+      /* 搜索框样式 */
+      .smart-masonry-item .card-style-target input[type="text"] {
+        border-radius: ${cardStyle.searchBoxBorderRadius}px !important;
+        background-color: ${cardStyle.searchBoxBackgroundColor} !important;
+        border-color: ${cardStyle.searchBoxBorderColor} !important;
+        border-width: 1px !important;
+        font-size: ${cardStyle.searchBoxFontSize}px !important;
+        color: ${cardStyle.searchBoxTextColor} !important;
+        transition: border-width 0.2s ease, box-shadow 0.2s ease !important;
+      }
+
+      /* 搜索框焦点状态 - 使用相同颜色但更粗的边框 */
+      .smart-masonry-item .card-style-target input[type="text"]:focus {
+        border-color: ${cardStyle.searchBoxBorderColor} !important;
+        border-width: 2px !important;
+        outline: none !important;
+        box-shadow: 0 0 0 1px ${cardStyle.searchBoxBorderColor}40 !important;
+      }
+
+      .smart-masonry-item .card-style-target input[type="text"]::placeholder {
+        color: ${cardStyle.searchBoxPlaceholderColor} !important;
+      }
+
+      /* 搜索按钮样式 - 使用更高特异性覆盖Tailwind CSS */
+      .smart-masonry-item .card-style-target button[type="button"],
+      .smart-masonry-item .card-style-target button[type="submit"],
+      .smart-masonry-item .card-style-target button.bg-blue-500,
+      .smart-masonry-item .card-style-target button {
+        border-radius: ${cardStyle.searchButtonBorderRadius}px !important;
+        background-color: ${cardStyle.searchButtonBackgroundColor} !important;
+        color: ${cardStyle.searchButtonTextColor} !important;
+        transition: background-color 0.2s ease !important;
+        border: none !important;
+      }
+
+      .smart-masonry-item .card-style-target button[type="button"]:hover,
+      .smart-masonry-item .card-style-target button[type="submit"]:hover,
+      .smart-masonry-item .card-style-target button.bg-blue-500:hover,
+      .smart-masonry-item .card-style-target button:hover {
+        background-color: ${cardStyle.searchButtonHoverColor} !important;
+      }
+
+      /* 确保按钮在禁用状态下也应用自定义样式 */
+      .smart-masonry-item .card-style-target button:disabled {
+        background-color: ${cardStyle.searchButtonBackgroundColor} !important;
+        opacity: 0.5 !important;
+      }
+
+      /* 卡片间距调整 */
+      .smart-masonry-grid {
+        gap: ${cardStyle.cardSpacing}px !important;
+      }
+    `;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
+    <>
+      {/* 动态卡片样式 */}
+      <style dangerouslySetInnerHTML={{ __html: generateCardStyleCSS() }} />
+
+      {/* 背景图片层 */}
+      {backgroundImage && (
+        <div
+          className="background-image-layer"
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+            filter: `blur(${backgroundBlur}px)`
+          }}
+        />
+      )}
+
+      {/* 背景遮罩层 */}
+      {backgroundImage && (
+        <div
+          className="background-mask-layer"
+          style={{
+            backgroundColor: `rgba(0, 0, 0, ${(backgroundMaskOpacity || 30) / 100})`
+          }}
+        />
+      )}
+
+      <div className="min-h-screen text-gray-800 main-container"
+           style={{
+             backgroundColor: backgroundImage ? 'transparent' : '#f9fafb'
+           }}>
+
       {showTemplateManager ? (
         <div className="container mx-auto px-4 py-8">
           <TemplateManager
@@ -365,7 +573,7 @@ const NewTabPage = () => {
                       {templates.map((template) => (
                         <div
                           key={template.id}
-                          ref={(el) => (cardRefs.current[template.id] = el)}
+                          ref={(el) => { cardRefs.current[template.id] = el; }}
                           className={`transition-all duration-300 ${
                             activeTemplateId === template.id ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
                           }`}
@@ -397,6 +605,14 @@ const NewTabPage = () => {
           setTopHintTitle(s.topHintTitle)
           setTopHintSubtitle(s.topHintSubtitle)
           setSidebarWidth(s.sidebarWidth || 256)
+          // 应用背景设置
+          setBackgroundImage(s.backgroundImage)
+          setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30)
+          setBackgroundBlur(s.backgroundBlur || 0)
+          // 应用卡片样式设置
+          if (s.cardStyle) {
+            setCardStyle(s.cardStyle)
+          }
         }}
         onTemplatesSaved={() => {
           // 重新加载模板列表
@@ -407,10 +623,13 @@ const NewTabPage = () => {
           // 实时预览侧边栏宽度变化
           setSidebarWidth(width)
         }}
+        onBackgroundChange={handleBackgroundChange}
+        onCardStyleChange={handleCardStyleChange}
       />
 
       <ToastContainer messages={toast.messages} onRemove={toast.removeToast} />
-    </div>
+      </div>
+    </>
   );
 };
 

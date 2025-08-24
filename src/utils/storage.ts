@@ -1,4 +1,4 @@
-import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType } from "../types";
+import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType, CardStyleSettings } from "../types";
 import { SidebarUtils } from "./sidebarUtils";
 
 // 存储键名常量
@@ -7,6 +7,41 @@ const STORAGE_KEYS = {
   SEARCH_HISTORY: 'searchHistory',
   GLOBAL_SETTINGS: 'globalSettings'
 } as const;
+
+// 默认卡片样式设置（与浅色主题保持一致）
+const DEFAULT_CARD_STYLE: CardStyleSettings = {
+  // 卡片布局设置
+  cardSpacing: 20,
+  cardBackgroundColor: '#ffffff',
+  cardOpacity: 98,
+  cardMaskOpacity: 8,
+  cardBlurStrength: 16,
+
+  // 卡片边框设置
+  cardBorderEnabled: true,
+  cardBorderColor: '#e2e8f0',
+  cardBorderWidth: 1,
+  cardBorderStyle: 'solid',
+
+  // 卡片标题样式
+  titleFontSize: 17,
+  titleFontColor: '#1e293b',
+  titleFontWeight: '600',
+
+  // 搜索框样式
+  searchBoxBorderRadius: 12,
+  searchBoxBackgroundColor: '#f8fafc',
+  searchBoxBorderColor: '#cbd5e1',
+  searchBoxFontSize: 15,
+  searchBoxTextColor: '#334155',
+  searchBoxPlaceholderColor: '#94a3b8',
+
+  // 搜索按钮样式
+  searchButtonBorderRadius: 12,
+  searchButtonBackgroundColor: '#3b82f6',
+  searchButtonTextColor: '#ffffff',
+  searchButtonHoverColor: '#2563eb'
+};
 
 // 默认数据
 const DEFAULT_DATA: StorageData = {
@@ -18,7 +53,11 @@ const DEFAULT_DATA: StorageData = {
     topHintTitle: '搜索模板',
     topHintSubtitle: '选择任意模板开始搜索',
     historySortType: 'time',
-    sidebarWidth: SidebarUtils.DEFAULT_WIDTH
+    sidebarWidth: SidebarUtils.DEFAULT_WIDTH,
+    backgroundImage: undefined,
+    backgroundMaskOpacity: 30,
+    backgroundBlur: 0,
+    cardStyle: DEFAULT_CARD_STYLE
   }
 };
 

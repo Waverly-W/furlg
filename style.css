@@ -229,6 +229,44 @@ div[class*="search-card"]:hover {
               opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* 背景图片层样式 */
+.background-image-layer {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -999 !important;
+  pointer-events: none !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* 背景遮罩层样式 */
+.background-mask-layer {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -998 !important;
+  pointer-events: none !important;
+}
+
+/* 确保根容器不会遮挡背景 */
+html, body {
+  position: relative;
+  z-index: 0;
+}
+
+/* 确保主容器有正确的层叠上下文 */
+.main-container {
+  position: relative;
+  z-index: 1;
+  background-color: transparent;
+}
+
 /* 侧边栏显示按钮悬停效果 */
 .sidebar-show-button {
   transition: all 0.2s ease-in-out;
