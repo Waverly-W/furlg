@@ -393,13 +393,20 @@ const NewTabPage = () => {
       {/* 动态卡片样式 */}
       <style dangerouslySetInnerHTML={{ __html: generateCardStyleCSS() }} />
 
-      {/* 背景图片层 */}
+      {/* 背景图片层 - 动态调整扩展尺寸以消除模糊边缘泛白 */}
       {backgroundImage && (
         <div
           className="background-image-layer"
           style={{
             backgroundImage: `url(${backgroundImage})`,
-            filter: `blur(${backgroundBlur}px)`
+            filter: `blur(${backgroundBlur}px)`,
+            // 根据模糊强度动态调整扩展尺寸，模糊越强扩展越大
+            top: `${-Math.max(20, backgroundBlur * 2)}px`,
+            left: `${-Math.max(20, backgroundBlur * 2)}px`,
+            width: `calc(100vw + ${Math.max(40, backgroundBlur * 4)}px)`,
+            height: `calc(100vh + ${Math.max(40, backgroundBlur * 4)}px)`,
+            // 轻微缩放确保覆盖完整
+            transform: `scale(${1 + Math.max(0.02, backgroundBlur * 0.002)})`
           }}
         />
       )}

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { StorageManager } from '../utils/storage'
 import type { GlobalSettings, OpenBehavior, Template, HistorySortType, CardStyleSettings, CardStyleTheme } from '../types'
 import { TemplateManagerDraft } from './TemplateManagerDraft'
+import { IntelligentThemeGenerator } from './IntelligentThemeGenerator'
+import { EnhancedBackgroundSettings } from './EnhancedBackgroundSettings'
 import { SidebarUtils } from '../utils/sidebarUtils'
 import { CARD_STYLE_THEMES, getDefaultCardStyle, validateCardStyleSettings } from '../utils/cardStyleThemes'
 
@@ -93,9 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   )
   const [isMobile, setIsMobile] = useState(SidebarUtils.isMobile())
 
-  // 背景设置相关状态
-  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // 背景设置已迁移到增强背景设置组件
 
   // 加载全局设置
   useEffect(() => {
@@ -103,8 +103,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     ;(async () => {
       const s = await StorageManager.getGlobalSettings()
       setSettings(s)
-      // 设置背景预览
-      setBackgroundPreview(s.backgroundImage || null)
       // 载入当前模板为草稿
       const t = await StorageManager.getTemplates()
       setDraftTemplates(t)
@@ -183,99 +181,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }
 
-  // 背景设置函数
-  const setBackgroundImage = (image: string | undefined) => {
-    setSettings((p) => {
-      const newSettings = { ...p, backgroundImage: image };
-      // 实时预览
-      if (onBackgroundChange) {
-        onBackgroundChange({
-          backgroundImage: image,
-          backgroundMaskOpacity: newSettings.backgroundMaskOpacity,
-          backgroundBlur: newSettings.backgroundBlur
-        });
-      }
-      return newSettings;
-    });
-  }
+  // 背景设置函数已迁移到增强背景设置组件
 
-  const setBackgroundMaskOpacity = (opacity: number) => {
-    setSettings((p) => {
-      const newSettings = { ...p, backgroundMaskOpacity: opacity };
+  // 处理增强背景设置
+  const handleEnhancedBackgroundChange = (backgroundSettings: {
+    backgroundImage?: string,
+    backgroundImageId?: string,
+    backgroundMaskOpacity?: number,
+    backgroundBlur?: number
+  }) => {
+    console.log('🎨 增强背景设置实时预览:', backgroundSettings);
+
+    setSettings((prev) => {
+      const newSettings = { ...prev };
+
+      if (backgroundSettings.backgroundImage !== undefined) {
+        console.log('📷 设置背景图片:', backgroundSettings.backgroundImage ? '有图片' : '无图片');
+        newSettings.backgroundImage = backgroundSettings.backgroundImage;
+      }
+
+      if (backgroundSettings.backgroundImageId !== undefined) {
+        console.log('🆔 设置背景图片ID:', backgroundSettings.backgroundImageId);
+        newSettings.backgroundImageId = backgroundSettings.backgroundImageId;
+      }
+
+      if (backgroundSettings.backgroundMaskOpacity !== undefined) {
+        console.log('🎭 设置遮罩透明度:', backgroundSettings.backgroundMaskOpacity);
+        newSettings.backgroundMaskOpacity = backgroundSettings.backgroundMaskOpacity;
+      }
+
+      if (backgroundSettings.backgroundBlur !== undefined) {
+        console.log('🌫️ 设置背景模糊:', backgroundSettings.backgroundBlur);
+        newSettings.backgroundBlur = backgroundSettings.backgroundBlur;
+      }
+
       // 实时预览
       if (onBackgroundChange) {
         onBackgroundChange({
           backgroundImage: newSettings.backgroundImage,
-          backgroundMaskOpacity: opacity,
+          backgroundMaskOpacity: newSettings.backgroundMaskOpacity,
           backgroundBlur: newSettings.backgroundBlur
         });
       }
+
       return newSettings;
     });
-  }
+  };
 
-  const setBackgroundBlur = (blur: number) => {
-    setSettings((p) => {
-      const newSettings = { ...p, backgroundBlur: blur };
-      // 实时预览
-      if (onBackgroundChange) {
-        onBackgroundChange({
-          backgroundImage: newSettings.backgroundImage,
-          backgroundMaskOpacity: newSettings.backgroundMaskOpacity,
-          backgroundBlur: blur
-        });
-      }
-      return newSettings;
-    });
-  }
-
-  // 处理文件上传
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // 验证文件类型
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      alert('请选择支持的图片格式：JPG, PNG, GIF, WebP');
-      return;
-    }
-
-    // 验证文件大小（限制为5MB）
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      alert('图片文件大小不能超过5MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setBackgroundPreview(result);
-      setBackgroundImage(result);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // 移除背景图片
-  const removeBackground = () => {
-    setBackgroundPreview(null);
-    setBackgroundImage(undefined);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
-
-  // 重置背景设置为默认值
-  const resetBackgroundSettings = () => {
-    setBackgroundImage(undefined);
-    setBackgroundMaskOpacity(30);
-    setBackgroundBlur(0);
-    setBackgroundPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
+  // 注意：旧的文件上传和背景处理函数已被新的增强背景设置组件替代
 
   // 卡片样式设置函数
   const updateCardStyle = (updates: Partial<CardStyleSettings>) => {
@@ -334,24 +287,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     });
   };
 
-  // 分组重置函数
-  const resetGlobalStyle = () => {
-    setBackgroundImage(undefined);
-    setBackgroundMaskOpacity(30);
-    setBackgroundBlur(0);
-    setBackgroundPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    // 触发实时预览
-    if (onBackgroundChange) {
-      onBackgroundChange({
-        backgroundImage: undefined,
-        backgroundMaskOpacity: 30,
-        backgroundBlur: 0
-      });
-    }
-  };
+  // 注意：重置功能已集成到增强背景设置组件中
 
   const resetCardStyleGroup = () => {
     resetCardStyle();
@@ -687,103 +623,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="bg-white rounded-lg border border-gray-200 p-5">
                         <h3 className="text-base font-semibold text-gray-900 mb-4">全局样式设置</h3>
 
-                        {/* 背景图片设置 */}
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-medium text-gray-900">背景图片设置</h4>
-
-                          {/* 背景图片选择 */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700">背景图片</span>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => fileInputRef.current?.click()}
-                                  className="px-3 py-1.5 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
-                                >
-                                  选择图片
-                                </button>
-                                {(settings.backgroundImage || backgroundPreview) && (
-                                  <button
-                                    type="button"
-                                    onClick={removeBackground}
-                                    className="px-3 py-1.5 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
-                                  >
-                                    移除背景
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* 隐藏的文件输入 */}
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                            />
-
-                            {/* 背景图片预览 */}
-                            {(settings.backgroundImage || backgroundPreview) && (
-                              <div className="relative">
-                                <img
-                                  src={backgroundPreview || settings.backgroundImage}
-                                  alt="背景预览"
-                                  className="w-full h-24 object-cover rounded-md border border-gray-200"
-                                />
-                                <div className="absolute inset-0 bg-black/20 rounded-md flex items-center justify-center">
-                                  <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">预览</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* 遮罩透明度 */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700">遮罩透明度</span>
-                              <span className="text-xs text-gray-500">{settings.backgroundMaskOpacity || 30}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              step="5"
-                              value={settings.backgroundMaskOpacity || 30}
-                              onChange={(e) => setBackgroundMaskOpacity(Number(e.target.value))}
-                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                            />
-                          </div>
-
-                          {/* 背景模糊 */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700">背景模糊</span>
-                              <span className="text-xs text-gray-500">{settings.backgroundBlur || 0}px</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="20"
-                              step="1"
-                              value={settings.backgroundBlur || 0}
-                              onChange={(e) => setBackgroundBlur(Number(e.target.value))}
-                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                            />
-                          </div>
-
-                          {/* 重置按钮 */}
-                          <div className="flex justify-end pt-4 border-t border-gray-200">
-                            <button
-                              type="button"
-                              onClick={resetGlobalStyle}
-                              className="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
-                            >
-                              重置全局样式
-                            </button>
-                          </div>
-                        </div>
+                        {/* 增强背景设置 */}
+                        <EnhancedBackgroundSettings
+                          settings={settings}
+                          onBackgroundChange={handleEnhancedBackgroundChange}
+                        />
                       </div>
                     </div>
                   )}
@@ -792,6 +636,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="space-y-6">
                       <div className="bg-white rounded-lg border border-gray-200 p-5">
                         <h3 className="text-base font-semibold text-gray-900 mb-4">卡片样式设置</h3>
+
+                        {/* 智能主题生成器 */}
+                        <IntelligentThemeGenerator
+                          backgroundImage={settings.backgroundImage}
+                          onThemeGenerated={(theme) => {
+                            setSettings(prev => ({
+                              ...prev,
+                              cardStyle: theme
+                            }));
+                            onCardStyleChange?.(theme);
+                          }}
+                          onPreviewTheme={(theme) => {
+                            onCardStyleChange?.(theme);
+                          }}
+                          onCancelPreview={() => {
+                            onCardStyleChange?.(settings.cardStyle);
+                          }}
+                        />
 
                         {/* 预设主题 */}
                         <div className="space-y-4">

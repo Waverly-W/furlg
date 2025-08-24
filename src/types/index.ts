@@ -109,7 +109,8 @@ export interface GlobalSettings {
   sidebarWidth?: number           // 侧边栏宽度（像素），默认256px
   sidebarVisible?: boolean        // 侧边栏是否可见，默认true
   // 背景设置
-  backgroundImage?: string        // 背景图片的base64数据或URL
+  backgroundImage?: string        // 背景图片的base64数据或URL（向后兼容）
+  backgroundImageId?: string      // 背景图片ID（新的存储方式）
   backgroundMaskOpacity?: number  // 背景遮罩透明度（0-100）
   backgroundBlur?: number         // 背景模糊程度（0-20px）
   // 搜索卡片样式设置

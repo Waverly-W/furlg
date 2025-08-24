@@ -55,6 +55,7 @@ const DEFAULT_DATA: StorageData = {
     historySortType: 'time',
     sidebarWidth: SidebarUtils.DEFAULT_WIDTH,
     backgroundImage: undefined,
+    backgroundImageId: undefined, // 新增：背景图片ID
     backgroundMaskOpacity: 30,
     backgroundBlur: 0,
     cardStyle: DEFAULT_CARD_STYLE
