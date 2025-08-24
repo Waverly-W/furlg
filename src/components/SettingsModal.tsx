@@ -210,6 +210,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       />
                     </label>
 
+                    {/* 顶部标题和副标题设置 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm disabled:opacity-50"
+                        placeholder="顶部标题（如：搜索模板）"
+                        value={settings.topHintTitle}
+                        onChange={(e) => setTopHintTitle(e.target.value)}
+                        disabled={!settings.topHintEnabled}
+                      />
+                      <input
+                        type="text"
+                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm disabled:opacity-50"
+                        placeholder="顶部副标题（如：选择任意模板开始搜索）"
+                        value={settings.topHintSubtitle}
+                        onChange={(e) => setTopHintSubtitle(e.target.value)}
+                        disabled={!settings.topHintEnabled}
+                      />
+                    </div>
+
                     {/* 侧边栏宽度设置 - 仅在桌面端显示 */}
                     {!isMobile && (
                       <div className="space-y-3">
@@ -295,25 +315,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                       </div>
                     )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm disabled:opacity-50"
-                        placeholder="顶部标题（如：搜索模板）"
-                        value={settings.topHintTitle}
-                        onChange={(e) => setTopHintTitle(e.target.value)}
-                        disabled={!settings.topHintEnabled}
-                      />
-                      <input
-                        type="text"
-                        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm disabled:opacity-50"
-                        placeholder="顶部副标题（如：选择任意模板开始搜索）"
-                        value={settings.topHintSubtitle}
-                        onChange={(e) => setTopHintSubtitle(e.target.value)}
-                        disabled={!settings.topHintEnabled}
-                      />
-                    </div>
                   </div>
                 </div>
 
