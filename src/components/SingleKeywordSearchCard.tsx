@@ -19,10 +19,12 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
 }) => {
   // 单关键词输入状态
   const [keyword, setKeyword] = useState('');
-  
+
   // 搜索建议状态
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+  const [hasSelectedSuggestion, setHasSelectedSuggestion] = useState(false);
+  const [selectedSuggestionKeyword, setSelectedSuggestionKeyword] = useState<string>();
+
   // 输入框引用
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,17 +38,30 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
   const handleSuggestionSelect = (selectedKeyword: string) => {
     setKeyword(selectedKeyword);
     setShowSuggestions(false);
+    setHasSelectedSuggestion(false);
+    setSelectedSuggestionKeyword(undefined);
     // 立即执行搜索
     setTimeout(() => {
       onSearch(template, selectedKeyword);
     }, 0);
   };
 
+  // 处理建议选中状态变化
+  const handleSelectionChange = (hasSelection: boolean, selectedKeyword?: string) => {
+    setHasSelectedSuggestion(hasSelection);
+    setSelectedSuggestionKeyword(selectedKeyword);
+  };
+
   // 处理键盘事件
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
-      // 如果建议框没有打开，执行搜索
-      if (!showSuggestions) {
+      // 智能Enter键行为
+      if (showSuggestions && hasSelectedSuggestion && selectedSuggestionKeyword) {
+        // 有建议且已选中：使用选中的建议项
+        handleSuggestionSelect(selectedSuggestionKeyword);
+      } else {
+        // 无建议或未选中：直接搜索当前输入内容
+        setShowSuggestions(false);
         handleSearch();
       }
     }
@@ -62,7 +77,6 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
   return (
     <SearchCardBase
       title={template.name}
-      domain={template.domain}
       className={`search-card ${className}`}
     >
       <div className="flex flex-col h-full">
@@ -77,8 +91,16 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => setShowSuggestions(true)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
-                placeholder="输入搜索关键词..."
+                className={`w-full px-3.5 py-2.5 border rounded-md focus:outline-none focus:ring-2 text-sm transition-all duration-200 ${
+                  showSuggestions && hasSelectedSuggestion
+                    ? 'border-blue-400 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } placeholder:text-gray-400`}
+                placeholder={
+                  showSuggestions && hasSelectedSuggestion
+                    ? `按 Enter 搜索 "${selectedSuggestionKeyword}"`
+                    : "输入搜索关键词..."
+                }
                 disabled={isSearching}
               />
 
@@ -87,9 +109,14 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
                 template={template}
                 query={keyword}
                 onSelect={handleSuggestionSelect}
-                onClose={() => setShowSuggestions(false)}
+                onClose={() => {
+                  setShowSuggestions(false);
+                  setHasSelectedSuggestion(false);
+                  setSelectedSuggestionKeyword(undefined);
+                }}
                 visible={showSuggestions}
                 placeholderName="keyword"
+                onSelectionChange={handleSelectionChange}
                 onEnterWithoutSelection={() => {
                   setShowSuggestions(false);
                   handleSearch();

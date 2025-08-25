@@ -23,10 +23,14 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
 
   // 多关键词输入状态
   const [keywordValues, setKeywordValues] = useState<MultiKeywordValues>({});
-  
+
   // 搜索建议状态
   const [activeSuggestions, setActiveSuggestions] = useState<string | null>(null);
-  
+  const [suggestionStates, setSuggestionStates] = useState<Record<string, {
+    hasSelection: boolean;
+    selectedKeyword?: string;
+  }>>({});
+
   // 输入框引用
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -56,13 +60,34 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
       [placeholderCode]: keyword
     }));
     setActiveSuggestions(null);
+    // 清除该输入框的建议状态
+    setSuggestionStates(prev => ({
+      ...prev,
+      [placeholderCode]: { hasSelection: false, selectedKeyword: undefined }
+    }));
+  };
+
+  // 处理建议选中状态变化
+  const handleSelectionChange = (placeholderCode: string, hasSelection: boolean, selectedKeyword?: string) => {
+    setSuggestionStates(prev => ({
+      ...prev,
+      [placeholderCode]: { hasSelection, selectedKeyword }
+    }));
   };
 
   // 处理键盘事件
   const handleKeyDown = (placeholderCode: string, event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
-      // 如果建议框没有打开，执行搜索
-      if (activeSuggestions !== placeholderCode) {
+      // 智能Enter键行为
+      const suggestionState = suggestionStates[placeholderCode];
+      const isActiveSuggestion = activeSuggestions === placeholderCode;
+
+      if (isActiveSuggestion && suggestionState?.hasSelection && suggestionState.selectedKeyword) {
+        // 有建议且已选中：使用选中的建议项
+        handleSuggestionSelect(placeholderCode, suggestionState.selectedKeyword);
+      } else {
+        // 无建议或未选中：直接搜索
+        setActiveSuggestions(null);
         handleSearch();
       }
     } else if (event.key === 'Tab') {
@@ -106,7 +131,6 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
   return (
     <SearchCardBase
       title={template.name}
-      domain={template.domain}
       className={`search-card ${className}`}
     >
       <div className="flex flex-col h-full">
@@ -135,8 +159,16 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
                       onChange={(e) => handleInputChange(placeholder.code, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(placeholder.code, e)}
                       onFocus={() => setActiveSuggestions(placeholder.code)}
-                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 text-sm"
-                      placeholder={placeholder.placeholder || `请输入${placeholder.name}`}
+                      className={`w-full px-3.5 py-2.5 border rounded-md focus:outline-none focus:ring-2 text-sm transition-all duration-200 ${
+                        activeSuggestions === placeholder.code && suggestionStates[placeholder.code]?.hasSelection
+                          ? 'border-blue-400 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      } placeholder:text-gray-400`}
+                      placeholder={
+                        activeSuggestions === placeholder.code && suggestionStates[placeholder.code]?.hasSelection
+                          ? `按 Enter 搜索 "${suggestionStates[placeholder.code]?.selectedKeyword}"`
+                          : (placeholder.placeholder || `请输入${placeholder.name}`)
+                      }
                       disabled={isSearching}
                     />
 
@@ -145,9 +177,18 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
                       template={template}
                       query={keywordValues[placeholder.code] || ''}
                       onSelect={(keyword) => handleSuggestionSelect(placeholder.code, keyword)}
-                      onClose={() => setActiveSuggestions(null)}
+                      onClose={() => {
+                        setActiveSuggestions(null);
+                        setSuggestionStates(prev => ({
+                          ...prev,
+                          [placeholder.code]: { hasSelection: false, selectedKeyword: undefined }
+                        }));
+                      }}
                       visible={activeSuggestions === placeholder.code}
                       placeholderName={placeholder.code}
+                      onSelectionChange={(hasSelection, selectedKeyword) =>
+                        handleSelectionChange(placeholder.code, hasSelection, selectedKeyword)
+                      }
                       onEnterWithoutSelection={() => {
                         setActiveSuggestions(null);
                         handleSearch();

@@ -31,10 +31,15 @@
       "https://*/*"
     ],
     "permissions": [
-      "storage"
+      "storage",
+      "activeTab"
     ],
     "chrome_url_overrides": {
       "newtab": "newtab.html"
+    },
+    "action": {
+      "default_popup": "popup.html",
+      "default_title": "Furlg - 创建搜索模板"
     }
   }
 }

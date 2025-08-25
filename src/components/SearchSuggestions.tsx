@@ -11,6 +11,7 @@ interface SearchSuggestionsProps {
   visible: boolean;
   onEnterWithoutSelection?: () => void;
   placeholderName?: string; // 新增：占位符名称，用于获取特定占位符的历史记录
+  onSelectionChange?: (hasSelection: boolean, selectedKeyword?: string) => void; // 新增：选中状态变化回调
 }
 
 export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
@@ -20,7 +21,8 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   onClose,
   visible,
   onEnterWithoutSelection,
-  placeholderName
+  placeholderName,
+  onSelectionChange
 }) => {
   const [suggestions, setSuggestions] = useState<SearchHistory[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -47,7 +49,16 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
       const matches = SearchMatcher.fuzzyMatch(history, query, 8);
       setSuggestions(matches);
-      setSelectedIndex(-1);
+      // 自动选中第一个建议项（如果有建议的话）
+      const newSelectedIndex = matches.length > 0 ? 0 : -1;
+      setSelectedIndex(newSelectedIndex);
+
+      // 通知父组件选中状态变化
+      if (onSelectionChange) {
+        const hasSelection = newSelectedIndex >= 0 && matches.length > 0;
+        const selectedKeyword = hasSelection ? matches[newSelectedIndex].keyword : undefined;
+        onSelectionChange(hasSelection, selectedKeyword);
+      }
 
       // 获取当前排序方式
       const settings = await StorageManager.getGlobalSettings();
@@ -68,6 +79,15 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       setSelectedIndex(-1);
     }
   }, [template, query, visible, placeholderName]);
+
+  // 监听选中索引变化，通知父组件
+  useEffect(() => {
+    if (onSelectionChange && visible) {
+      const hasSelection = selectedIndex >= 0 && selectedIndex < suggestions.length;
+      const selectedKeyword = hasSelection ? suggestions[selectedIndex].keyword : undefined;
+      onSelectionChange(hasSelection, selectedKeyword);
+    }
+  }, [selectedIndex, suggestions, visible, onSelectionChange]);
 
   // 监听Chrome存储变化，实现排序方式变更时的实时更新
   useEffect(() => {
@@ -164,6 +184,25 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
               sortType={sortType}
             />
           ))}
+
+          {/* 交互提示 */}
+          {suggestions.length > 0 && (
+            <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/50">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>
+                  {selectedIndex >= 0 ? (
+                    <span className="flex items-center">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-1.5"></span>
+                      按 Enter 使用选中项
+                    </span>
+                  ) : (
+                    '↑↓ 选择 • Enter 搜索'
+                  )}
+                </span>
+                <span>Esc 关闭</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -205,8 +244,10 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({
 
   return (
     <div
-      className={`px-3 py-2 cursor-pointer flex items-center justify-between transition-colors ${
-        isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+      className={`px-3 py-2 cursor-pointer flex items-center justify-between transition-all duration-150 ${
+        isSelected
+          ? 'bg-blue-100 text-blue-800 border-l-4 border-blue-500 shadow-sm'
+          : 'hover:bg-gray-50 border-l-4 border-transparent'
       }`}
       onClick={onClick}
       onMouseEnter={onMouseEnter}

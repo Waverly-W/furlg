@@ -29,7 +29,6 @@ export const SmartSearchCard: React.FC<SmartSearchCardProps> = React.memo(({
     return (
       <SearchCardBase
         title={template.name}
-        domain={template.domain}
         className={`search-card border-red-200 ${className}`}
       >
         <div className="text-center flex-1 flex flex-col justify-center">
