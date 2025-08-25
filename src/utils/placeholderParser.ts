@@ -6,15 +6,25 @@ import type { PlaceholderInfo, PlaceholderValidationResult, TemplatePlaceholderV
  */
 export class PlaceholderParser {
   /**
-   * 从URL模板中提取所有占位符
+   * 从URL模板中提取所有占位符（包含重复的）
    * @param urlPattern URL模板字符串
-   * @returns 占位符名称数组
+   * @returns 占位符名称数组（可能包含重复项）
    */
   static extractPlaceholders(urlPattern: string): string[] {
     const matches = urlPattern.match(/\{([^}]+)\}/g);
     if (!matches) return [];
-    
+
     return matches.map(match => match.slice(1, -1)).filter(name => name.trim());
+  }
+
+  /**
+   * 从URL模板中提取唯一的占位符（去重）
+   * @param urlPattern URL模板字符串
+   * @returns 唯一的占位符名称数组
+   */
+  static extractUniquePlaceholders(urlPattern: string): string[] {
+    const allPlaceholders = this.extractPlaceholders(urlPattern);
+    return [...new Set(allPlaceholders)];
   }
 
   /**
@@ -23,7 +33,7 @@ export class PlaceholderParser {
    * @returns 验证结果
    */
   static validatePlaceholders(urlPattern: string): PlaceholderValidationResult {
-    const placeholders = this.extractPlaceholders(urlPattern);
+    const placeholders = this.extractUniquePlaceholders(urlPattern);
     const errors: string[] = [];
 
     // 检查是否有占位符
@@ -65,7 +75,7 @@ export class PlaceholderParser {
    * @returns 是否为单关键词模板
    */
   static isSingleKeywordTemplate(urlPattern: string): boolean {
-    const placeholders = this.extractPlaceholders(urlPattern);
+    const placeholders = this.extractUniquePlaceholders(urlPattern);
     return placeholders.length === 1 && placeholders[0] === 'keyword';
   }
 
@@ -75,7 +85,7 @@ export class PlaceholderParser {
    * @returns 是否为多关键词模板
    */
   static isMultiKeywordTemplate(urlPattern: string): boolean {
-    const placeholders = this.extractPlaceholders(urlPattern);
+    const placeholders = this.extractUniquePlaceholders(urlPattern);
     return placeholders.length > 1 || (placeholders.length === 1 && placeholders[0] !== 'keyword');
   }
 
@@ -186,7 +196,7 @@ export class PlaceholderParser {
     urlPattern: string,
     placeholderList: PlaceholderInfo[]
   ): TemplatePlaceholderValidationResult {
-    const usedPlaceholders = this.extractPlaceholders(urlPattern);
+    const usedPlaceholders = this.extractUniquePlaceholders(urlPattern);
     const definedPlaceholders = placeholderList.map(p => p.code);
 
     const missingInList = usedPlaceholders.filter(code => !definedPlaceholders.includes(code));
@@ -243,7 +253,7 @@ export class PlaceholderParser {
    * @returns 占位符列表
    */
   static generatePlaceholderListFromTemplate(urlPattern: string): PlaceholderInfo[] {
-    const placeholderCodes = this.extractPlaceholders(urlPattern);
+    const placeholderCodes = this.extractUniquePlaceholders(urlPattern);
     return placeholderCodes.map(code =>
       this.createPlaceholderInfo(code, this.generateDefaultLabel(code))
     );
@@ -256,7 +266,7 @@ export class PlaceholderParser {
    * @returns 同步后的占位符列表
    */
   static syncPlaceholderList(urlPattern: string, currentList: PlaceholderInfo[]): PlaceholderInfo[] {
-    const usedPlaceholders = this.extractPlaceholders(urlPattern);
+    const usedPlaceholders = this.extractUniquePlaceholders(urlPattern);
     const currentCodes = currentList.map(p => p.code);
 
     // 保留现有的占位符配置

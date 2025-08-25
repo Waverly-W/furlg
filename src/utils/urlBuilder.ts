@@ -54,7 +54,7 @@ export class UrlBuilder {
     let result = urlPattern;
 
     // 验证所有必需的关键词都已提供
-    const placeholders = PlaceholderParser.extractPlaceholders(urlPattern);
+    const placeholders = PlaceholderParser.extractUniquePlaceholders(urlPattern);
     const missingKeywords = placeholders.filter(name => !keywords[name] || !keywords[name].trim());
 
     if (missingKeywords.length > 0) {
