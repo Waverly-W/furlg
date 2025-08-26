@@ -142,12 +142,12 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
             return (
               <div key={placeholder.code} className="relative">
                 {/* 标签 */}
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                {/* <label className="block text-sm font-medium text-gray-700 mb-1">
                   {placeholder.name}
                   {placeholder.required !== false && (
                     <span className="text-red-500 ml-1">*</span>
                   )}
-                </label>
+                </label> */}
 
                 {/* 输入框和搜索按钮 */}
                 <div className={isLastPlaceholder ? "flex space-x-2" : "relative"}>

@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { StorageManager } from '../utils/storage'
-import type { GlobalSettings, OpenBehavior, Template, HistorySortType, CardStyleSettings, CardStyleTheme } from '../types'
+import type { GlobalSettings, OpenBehavior, Template, HistorySortType, CardStyleSettings, CardStyleTheme, DockShortcut, DockSettings } from '../types'
 import { TemplateManagerDraft } from './TemplateManagerDraft'
 import { IntelligentThemeGenerator } from './IntelligentThemeGenerator'
 import { EnhancedBackgroundSettings } from './EnhancedBackgroundSettings'
+import { BookmarkImporter } from './BookmarkImporter'
+import DockSettingsPanel from './DockSettingsPanel'
 import { SidebarUtils } from '../utils/sidebarUtils'
 import { CARD_STYLE_THEMES, getDefaultCardStyle, validateCardStyleSettings } from '../utils/cardStyleThemes'
 
 // 设置面板的主要分类
-type SettingsCategory = 'general' | 'templates' | 'style' | 'history';
+type SettingsCategory = 'general' | 'templates' | 'style' | 'history' | 'dock';
 
 // 样式设置的子分类
 type StyleSubCategory = 'global' | 'cards' | 'searchBox' | 'buttons' | 'text';
@@ -22,6 +24,7 @@ interface SettingsModalProps {
   onSidebarWidthChange?: (width: number) => void // 实时预览回调
   onBackgroundChange?: (settings: { backgroundImage?: string, backgroundMaskOpacity?: number, backgroundBlur?: number }) => void // 背景实时预览回调
   onCardStyleChange?: (cardStyle: CardStyleSettings) => void // 卡片样式实时预览回调
+  onDockShortcutsChange?: (shortcuts: DockShortcut[]) => void // Dock快捷方式变化回调
 }
 
 const defaultSettings: GlobalSettings = {
@@ -34,6 +37,11 @@ const defaultSettings: GlobalSettings = {
   backgroundImage: undefined,
   backgroundMaskOpacity: 30,
   backgroundBlur: 0,
+  dockSettings: {
+    enabled: true,
+    maxDisplayCount: 8,
+    position: 'bottom'
+  },
   cardStyle: {
     // 卡片布局设置
     cardSpacing: 20,
@@ -77,9 +85,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   templates = [],
   onSidebarWidthChange,
   onBackgroundChange,
-  onCardStyleChange
+  onCardStyleChange,
+  onDockShortcutsChange
 }) => {
   const [draftTemplates, setDraftTemplates] = useState<Template[]>([])
+  const [dockShortcuts, setDockShortcuts] = useState<DockShortcut[]>([])
 
   const [activeTab, setActiveTab] = useState<'global' | 'templates'>('global')
   const [settings, setSettings] = useState<GlobalSettings>(defaultSettings)
@@ -106,6 +116,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // 载入当前模板为草稿
       const t = await StorageManager.getTemplates()
       setDraftTemplates(t)
+      // 载入Dock快捷方式
+      const d = await StorageManager.getDockShortcuts()
+      setDockShortcuts(d)
     })()
   }, [open])
 
@@ -387,6 +400,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               >
                 历史记录
+              </button>
+              <button
+                onClick={() => setActiveCategory('dock')}
+                className={`w-full text-left px-5 py-2.5 transition-colors ${
+                  activeCategory === 'dock'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                Dock栏
               </button>
             </nav>
           </aside>
@@ -1186,6 +1209,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               </div>
+            ) : activeCategory === 'dock' ? (
+              <DockSettingsPanel
+                settings={settings}
+                shortcuts={dockShortcuts}
+                onSettingsChange={(newSettings) => setSettings(newSettings)}
+                onShortcutsChange={(newShortcuts) => {
+                  setDockShortcuts(newShortcuts);
+                  onDockShortcutsChange?.(newShortcuts);
+                }}
+              />
             ) : null}
           </section>
         </div>

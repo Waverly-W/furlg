@@ -1,11 +1,12 @@
-import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType, CardStyleSettings } from "../types";
+import type { Template, SearchHistory, StorageData, GlobalSettings, OpenBehavior, HistorySortType, CardStyleSettings, DockShortcut, DockSettings } from "../types";
 import { SidebarUtils } from "./sidebarUtils";
 
 // 存储键名常量
 const STORAGE_KEYS = {
   TEMPLATES: 'templates',
   SEARCH_HISTORY: 'searchHistory',
-  GLOBAL_SETTINGS: 'globalSettings'
+  GLOBAL_SETTINGS: 'globalSettings',
+  DOCK_SHORTCUTS: 'dockShortcuts'
 } as const;
 
 // 默认卡片样式设置（与浅色主题保持一致）
@@ -43,10 +44,18 @@ const DEFAULT_CARD_STYLE: CardStyleSettings = {
   searchButtonHoverColor: '#2563eb'
 };
 
+// 默认Dock设置
+const DEFAULT_DOCK_SETTINGS: DockSettings = {
+  enabled: true,
+  maxDisplayCount: 8,
+  position: 'bottom'
+};
+
 // 默认数据
 const DEFAULT_DATA: StorageData = {
   templates: [],
   searchHistory: [],
+  dockShortcuts: [],
   globalSettings: {
     openBehavior: 'newtab',
     topHintEnabled: true,
@@ -58,7 +67,8 @@ const DEFAULT_DATA: StorageData = {
     backgroundImageId: undefined, // 新增：背景图片ID
     backgroundMaskOpacity: 30,
     backgroundBlur: 0,
-    cardStyle: DEFAULT_CARD_STYLE
+    cardStyle: DEFAULT_CARD_STYLE,
+    dockSettings: DEFAULT_DOCK_SETTINGS
   }
 };
 
@@ -428,6 +438,133 @@ export class StorageManager {
       await chrome.storage.local.clear();
     } catch (error) {
       console.error('清空数据失败:', error);
+      throw error;
+    }
+  }
+
+  // ==================== Dock快捷方式管理 ====================
+
+  /**
+   * 获取所有Dock快捷方式
+   */
+  static async getDockShortcuts(): Promise<DockShortcut[]> {
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEYS.DOCK_SHORTCUTS);
+      const shortcuts = result[STORAGE_KEYS.DOCK_SHORTCUTS] || DEFAULT_DATA.dockShortcuts || [];
+      // 按index升序排列
+      return shortcuts.sort((a: DockShortcut, b: DockShortcut) => a.index - b.index);
+    } catch (error) {
+      console.error('获取Dock快捷方式失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 保存Dock快捷方式
+   */
+  static async saveDockShortcut(shortcut: DockShortcut): Promise<void> {
+    try {
+      const shortcuts = await this.getDockShortcuts();
+      const existingIndex = shortcuts.findIndex(s => s.id === shortcut.id);
+
+      if (existingIndex >= 0) {
+        shortcuts[existingIndex] = { ...shortcut, updatedAt: Date.now() };
+      } else {
+        shortcuts.push({ ...shortcut, createdAt: Date.now(), updatedAt: Date.now() });
+      }
+
+      await chrome.storage.local.set({ [STORAGE_KEYS.DOCK_SHORTCUTS]: shortcuts });
+    } catch (error) {
+      console.error('保存Dock快捷方式失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除Dock快捷方式
+   */
+  static async deleteDockShortcut(id: string): Promise<void> {
+    try {
+      const shortcuts = await this.getDockShortcuts();
+      const filtered = shortcuts.filter(s => s.id !== id);
+      await chrome.storage.local.set({ [STORAGE_KEYS.DOCK_SHORTCUTS]: filtered });
+    } catch (error) {
+      console.error('删除Dock快捷方式失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量保存Dock快捷方式（用于排序）
+   */
+  static async setDockShortcuts(shortcuts: DockShortcut[]): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.DOCK_SHORTCUTS]: shortcuts });
+    } catch (error) {
+      console.error('批量保存Dock快捷方式失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取显示的Dock快捷方式（根据设置限制数量）
+   */
+  static async getDisplayDockShortcuts(): Promise<DockShortcut[]> {
+    try {
+      const shortcuts = await this.getDockShortcuts();
+      const settings = await this.getGlobalSettings();
+      const maxCount = settings.dockSettings?.maxDisplayCount || DEFAULT_DOCK_SETTINGS.maxDisplayCount;
+
+      return shortcuts.slice(0, maxCount);
+    } catch (error) {
+      console.error('获取显示Dock快捷方式失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 从书签数据创建Dock快捷方式
+   */
+  static async importBookmarksAsDockShortcuts(bookmarks: Array<{title: string, url: string}>): Promise<void> {
+    try {
+      const existingShortcuts = await this.getDockShortcuts();
+      const maxIndex = existingShortcuts.length > 0 ? Math.max(...existingShortcuts.map(s => s.index)) : -1;
+
+      const newShortcuts: DockShortcut[] = bookmarks.map((bookmark, index) => ({
+        id: `dock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: bookmark.title,
+        url: bookmark.url,
+        icon: `https://www.google.com/s2/favicons?domain=${new URL(bookmark.url).hostname}&sz=32`,
+        index: maxIndex + index + 1,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }));
+
+      const allShortcuts = [...existingShortcuts, ...newShortcuts];
+      await this.setDockShortcuts(allShortcuts);
+    } catch (error) {
+      console.error('导入书签为Dock快捷方式失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重新排序Dock快捷方式
+   */
+  static async reorderDockShortcuts(shortcutIds: string[]): Promise<void> {
+    try {
+      const shortcuts = await this.getDockShortcuts();
+      const reorderedShortcuts = shortcutIds.map((id, index) => {
+        const shortcut = shortcuts.find(s => s.id === id);
+        if (shortcut) {
+          return { ...shortcut, index, updatedAt: Date.now() };
+        }
+        return null;
+      }).filter(Boolean) as DockShortcut[];
+
+      await this.setDockShortcuts(reorderedShortcuts);
+    } catch (error) {
+      console.error('重新排序Dock快捷方式失败:', error);
       throw error;
     }
   }

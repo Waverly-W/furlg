@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import type { Template, MultiKeywordValues, CardStyleSettings } from "./src/types";
+import type { Template, MultiKeywordValues, CardStyleSettings, DockShortcut, GlobalSettings } from "./src/types";
 import { StorageManager } from "./src/utils/storage";
 import { UrlBuilder } from "./src/utils/urlBuilder";
 import { TemplateManager } from "./src/components/TemplateManager";
@@ -8,6 +8,7 @@ import { MasonryGrid } from "./src/components/MasonryGrid";
 import { ToastContainer, useToast } from "./src/components/Toast";
 import { LoadingSpinner, LoadingButton } from "./src/components/LoadingSpinner";
 import { SettingsModal } from "./src/components/SettingsModal";
+import { DockBar } from "./src/components/DockBar";
 import "./style.css";
 
 const NewTabPage = () => {
@@ -18,6 +19,10 @@ const NewTabPage = () => {
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [topHintEnabled, setTopHintEnabled] = useState(true);
+
+  // Dock相关状态
+  const [dockShortcuts, setDockShortcuts] = useState<DockShortcut[]>([]);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [topHintTitle, setTopHintTitle] = useState('搜索模板');
   const [topHintSubtitle, setTopHintSubtitle] = useState('选择任意模板开始搜索');
   const [openBehavior, setOpenBehavior] = useState<'current' | 'newtab'>('newtab');
@@ -74,6 +79,20 @@ const NewTabPage = () => {
     }
   };
 
+  // 加载Dock数据
+  const loadDockData = async () => {
+    try {
+      const [shortcuts, settings] = await Promise.all([
+        StorageManager.getDisplayDockShortcuts(),
+        StorageManager.getGlobalSettings()
+      ]);
+      setDockShortcuts(shortcuts);
+      setGlobalSettings(settings);
+    } catch (error) {
+      console.error('加载Dock数据失败:', error);
+    }
+  };
+
   // 读取全局设置
   useEffect(() => {
     (async () => {
@@ -97,6 +116,7 @@ const NewTabPage = () => {
 
   useEffect(() => {
     loadTemplates();
+    loadDockData();
   }, []);
 
   // 监听Chrome存储变化，实现数据同步
@@ -192,6 +212,42 @@ const NewTabPage = () => {
   const handleCardStyleChange = (newCardStyle: CardStyleSettings) => {
     console.log('🎨 卡片样式实时预览:', newCardStyle);
     setCardStyle(newCardStyle);
+  };
+
+  // 处理Dock快捷方式点击
+  const handleDockShortcutClick = (shortcut: DockShortcut, event: React.MouseEvent) => {
+    event.preventDefault();
+
+    // 根据全局设置决定打开方式
+    if (openBehavior === 'newtab' || event.ctrlKey || event.metaKey) {
+      window.open(shortcut.url, '_blank');
+    } else {
+      window.location.href = shortcut.url;
+    }
+  };
+
+  // 处理Dock快捷方式编辑
+  const handleDockShortcutEdit = (shortcut: DockShortcut) => {
+    // 打开设置页面的Dock选项卡
+    setSettingsOpen(true);
+    // 这里可以添加更多逻辑来直接跳转到编辑界面
+  };
+
+  // 处理Dock快捷方式删除
+  const handleDockShortcutDelete = async (shortcut: DockShortcut) => {
+    try {
+      await StorageManager.deleteDockShortcut(shortcut.id);
+      await loadDockData(); // 重新加载数据
+      toast.showSuccess('删除成功', `已删除快捷方式 "${shortcut.name}"`);
+    } catch (error) {
+      console.error('删除Dock快捷方式失败:', error);
+      toast.showError('删除失败', '无法删除快捷方式，请重试');
+    }
+  };
+
+  // 处理Dock快捷方式变化
+  const handleDockShortcutsChange = (shortcuts: DockShortcut[]) => {
+    setDockShortcuts(shortcuts);
   };
 
   // 处理单关键词搜索
@@ -632,7 +688,19 @@ const NewTabPage = () => {
         }}
         onBackgroundChange={handleBackgroundChange}
         onCardStyleChange={handleCardStyleChange}
+        onDockShortcutsChange={handleDockShortcutsChange}
       />
+
+      {/* Dock栏 */}
+      {globalSettings?.dockSettings?.enabled && dockShortcuts.length > 0 && (
+        <DockBar
+          shortcuts={dockShortcuts}
+          settings={globalSettings.dockSettings}
+          onShortcutClick={handleDockShortcutClick}
+          onShortcutEdit={handleDockShortcutEdit}
+          onShortcutDelete={handleDockShortcutDelete}
+        />
+      )}
 
       <ToastContainer messages={toast.messages} onRemove={toast.removeToast} />
       </div>

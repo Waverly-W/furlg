@@ -99,6 +99,24 @@ export interface CardStyleTheme {
   settings: CardStyleSettings     // 主题设置
 }
 
+// Dock快捷方式接口
+export interface DockShortcut {
+  id: string;                     // 唯一标识符
+  name: string;                   // 显示名称
+  url: string;                    // 目标链接
+  icon?: string;                  // 图标URL或favicon
+  index: number;                  // 排序索引（数字，用于控制显示顺序）
+  createdAt: number;              // 创建时间
+  updatedAt: number;              // 更新时间
+}
+
+// Dock设置接口
+export interface DockSettings {
+  enabled: boolean;               // 是否启用Dock栏
+  maxDisplayCount: number;        // 最大显示数量
+  position: 'bottom' | 'top';     // 位置（预留扩展选项）
+}
+
 // 全局设置
 export interface GlobalSettings {
   openBehavior: OpenBehavior      // 搜索结果打开方式
@@ -115,10 +133,13 @@ export interface GlobalSettings {
   backgroundBlur?: number         // 背景模糊程度（0-20px）
   // 搜索卡片样式设置
   cardStyle?: CardStyleSettings   // 搜索卡片样式配置
+  // Dock设置
+  dockSettings?: DockSettings     // Dock栏配置
 }
 
 export interface StorageData {
   templates: Template[];
   searchHistory: SearchHistory[];
   globalSettings?: GlobalSettings;
+  dockShortcuts?: DockShortcut[];  // Dock快捷方式列表
 }
