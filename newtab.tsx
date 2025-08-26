@@ -164,13 +164,13 @@ const NewTabPage = () => {
 
       // 监听模板变化
       if (changes.templates) {
-        console.log('检测到模板数据变化，重新加载模板列表');
+        // 模板数据变化，重新加载模板列表
         loadTemplates();
       }
 
       // 监听全局设置变化
       if (changes.globalSettings) {
-        console.log('检测到全局设置变化，重新加载设置');
+        // 全局设置变化，重新加载设置
         (async () => {
           const s = await StorageManager.getGlobalSettings();
           setOpenBehavior(s.openBehavior);
@@ -184,7 +184,7 @@ const NewTabPage = () => {
 
       // 监听历史记录变化
       if (changes.searchHistory) {
-        console.log('检测到历史记录变化');
+        // 历史记录变化通知
         // 历史记录变化会自动被各个搜索卡片组件监听到
       }
     };
@@ -225,24 +225,19 @@ const NewTabPage = () => {
     backgroundMaskOpacity?: number,
     backgroundBlur?: number
   }) => {
-    console.log('🎨 背景设置实时预览:', backgroundSettings);
     if (backgroundSettings.backgroundImage !== undefined) {
-      console.log('📷 设置背景图片:', backgroundSettings.backgroundImage ? '有图片' : '无图片');
       setBackgroundImage(backgroundSettings.backgroundImage);
     }
     if (backgroundSettings.backgroundMaskOpacity !== undefined) {
-      console.log('🎭 设置遮罩透明度:', backgroundSettings.backgroundMaskOpacity);
       setBackgroundMaskOpacity(backgroundSettings.backgroundMaskOpacity);
     }
     if (backgroundSettings.backgroundBlur !== undefined) {
-      console.log('🌫️设置背景模糊:', backgroundSettings.backgroundBlur);
       setBackgroundBlur(backgroundSettings.backgroundBlur);
     }
   };
 
   // 处理卡片样式设置实时预览
   const handleCardStyleChange = (newCardStyle: CardStyleSettings) => {
-    console.log('🎨 卡片样式实时预览:', newCardStyle);
     setCardStyle(newCardStyle);
   };
 
@@ -369,12 +364,7 @@ const NewTabPage = () => {
     );
   }
 
-  // 调试信息
-  console.log('🖼️ 当前背景状态:', {
-    backgroundImage: backgroundImage ? '有图片' : '无图片',
-    backgroundMaskOpacity,
-    backgroundBlur
-  });
+
 
   // 生成动态CSS样式
   const generateCardStyleCSS = () => {

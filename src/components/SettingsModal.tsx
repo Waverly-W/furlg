@@ -539,10 +539,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {/* 调试信息 - 开发时可以启用 */}
                           {process.env.NODE_ENV === 'development' && (
                             <details className="mt-2">
-                              <summary className="text-xs text-gray-400 cursor-pointer">调试信息</summary>
+                              <summary className="text-xs text-gray-400 cursor-pointer">调试信息（开发模式）</summary>
                               <div className="text-xs text-gray-400 mt-1 space-y-1">
                                 {(() => {
-                                  const details = SidebarUtils.getWidthCalculationDetails(templates);
+                                  const details = SidebarUtils.getWidthCalculationDetails(templates); // 仅用于开发诊断
                                   return (
                                     <div className="font-mono">
                                       <div>模板数量: {details.templateCount}</div>
