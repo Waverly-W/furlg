@@ -1234,7 +1234,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             onClick={async () => {
               await StorageManager.setTemplates(draftTemplates)
-              const updated = await StorageManager.saveGlobalSettings(settings)
+              // 保存前清洗：禁止持久化 blob: URL；若有 ID，以 ID 为准，URL 置空
+              const sanitized = { ...settings }
+              if (sanitized.backgroundImageId) {
+                sanitized.backgroundImage = undefined
+              } else if (sanitized.backgroundImage?.startsWith('blob:')) {
+                sanitized.backgroundImage = undefined
+              }
+              const updated = await StorageManager.saveGlobalSettings(sanitized)
               onApply?.(updated)
               onTemplatesSaved?.(draftTemplates)
               onClose()

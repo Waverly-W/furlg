@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { SearchHistory, Template } from '../types';
 import { StorageManager } from '../utils/storage';
 import { SearchMatcher } from '../utils/searchMatcher';
@@ -12,6 +13,7 @@ interface SearchSuggestionsProps {
   onEnterWithoutSelection?: () => void;
   placeholderName?: string; // 新增：占位符名称，用于获取特定占位符的历史记录
   onSelectionChange?: (hasSelection: boolean, selectedKeyword?: string) => void; // 新增：选中状态变化回调
+  anchorRef?: React.RefObject<HTMLElement>; // 新增：锚点元素（通常为输入框容器或输入框）
 }
 
 export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
@@ -22,13 +24,39 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   visible,
   onEnterWithoutSelection,
   placeholderName,
-  onSelectionChange
+  onSelectionChange,
+  anchorRef
 }) => {
   const [suggestions, setSuggestions] = useState<SearchHistory[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [sortType, setSortType] = useState<'time' | 'frequency'>('time');
   const containerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const positionRef = useRef<{ top: number; left: number; width: number } | null>(null)
+
+  // 基于 anchor 定位（仅在可见且锚点存在时）
+  useLayoutEffect(() => {
+    if (!visible) return
+    const update = () => {
+      const el = anchorRef?.current
+      if (!el) { setPosition(null); positionRef.current = null; return }
+      const r = el.getBoundingClientRect()
+      const next = { top: r.bottom + 4, left: r.left, width: r.width }
+      const prev = positionRef.current
+      if (!prev || prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) {
+        positionRef.current = next
+        setPosition(next)
+      }
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [visible, anchorRef])
 
   // 加载搜索建议
   const loadSuggestions = async () => {
@@ -80,14 +108,22 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     }
   }, [template, query, visible, placeholderName]);
 
-  // 监听选中索引变化，通知父组件
+  // 将回调存入ref，避免依赖变化导致的不必要effect触发
+  const onSelectionChangeRef = useRef<typeof onSelectionChange | undefined>(onSelectionChange)
+  useEffect(() => { onSelectionChangeRef.current = onSelectionChange }, [onSelectionChange])
+
+  // 仅在选中状态真实变化时通知父组件，避免循环更新
+  const lastSelectionRef = useRef<{ hasSelection: boolean; keyword?: string }>({ hasSelection: false })
   useEffect(() => {
-    if (onSelectionChange && visible) {
-      const hasSelection = selectedIndex >= 0 && selectedIndex < suggestions.length;
-      const selectedKeyword = hasSelection ? suggestions[selectedIndex].keyword : undefined;
-      onSelectionChange(hasSelection, selectedKeyword);
+    if (!visible) return
+    const hasSelection = selectedIndex >= 0 && selectedIndex < suggestions.length
+    const selectedKeyword = hasSelection ? suggestions[selectedIndex].keyword : undefined
+    const last = lastSelectionRef.current
+    if (last.hasSelection !== hasSelection || last.keyword !== selectedKeyword) {
+      lastSelectionRef.current = { hasSelection, keyword: selectedKeyword }
+      onSelectionChangeRef.current?.(hasSelection, selectedKeyword)
     }
-  }, [selectedIndex, suggestions, visible, onSelectionChange]);
+  }, [selectedIndex, suggestions, visible]);
 
   // 监听Chrome存储变化，实现排序方式变更时的实时更新
   useEffect(() => {
@@ -140,28 +176,32 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [visible, suggestions, selectedIndex]);
 
-  // 点击外部关闭
+  // 点击外部关闭：忽略锚点内点击
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        onClose();
+      const panel = containerRef.current
+      const anchor = anchorRef?.current
+      const target = event.target as Node
+      if (!panel) return
+      const clickedInsidePanel = panel.contains(target)
+      const clickedInsideAnchor = anchor ? anchor.contains(target) : false
+      if (!clickedInsidePanel && !clickedInsideAnchor) {
+        onClose()
       }
-    };
-
-    if (visible) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [visible, onClose]);
+    if (visible) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [visible, onClose, anchorRef]);
 
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null
 
-  return (
+  const panel = (
     <div
       ref={containerRef}
-      className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto"
+      className="fixed bg-white/95 backdrop-blur border border-gray-200 rounded-md shadow-lg z-[1000] max-h-64 overflow-y-auto"
+      style={{ top: position?.top, left: position?.left, width: position?.width }}
     >
       {loading ? (
         <div className="p-3 text-center text-gray-500 text-sm">
@@ -207,6 +247,9 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       )}
     </div>
   );
+
+  // Portal 渲染为 overlay，避免影响瀑布流测量
+  return createPortal(panel, document.body)
 };
 
 // 搜索建议项组件

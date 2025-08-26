@@ -121,6 +121,7 @@ export const SingleKeywordSearchCard: React.FC<SingleKeywordSearchCardProps> = R
                   setShowSuggestions(false);
                   handleSearch();
                 }}
+                anchorRef={inputRef as React.RefObject<HTMLElement>}
               />
             </div>
 

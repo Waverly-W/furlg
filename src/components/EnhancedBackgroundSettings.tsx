@@ -94,48 +94,6 @@ export const EnhancedBackgroundSettings: React.FC<EnhancedBackgroundSettingsProp
 
   return (
     <div className="space-y-6">
-      {/* 当前背景预览 */}
-      {(currentImageUrl || loading) && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium text-gray-900">当前背景</h4>
-            <button
-              onClick={handleRemoveBackground}
-              className="text-xs text-red-600 hover:text-red-700"
-            >
-              移除背景
-            </button>
-          </div>
-          
-          {loading ? (
-            <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : currentImageUrl ? (
-            <div className="relative">
-              <img
-                src={currentImageUrl}
-                alt="当前背景"
-                className="w-full h-32 object-cover rounded-lg"
-                style={{
-                  filter: `blur(${settings.backgroundBlur || 0}px)`
-                }}
-              />
-              <div
-                className="absolute inset-0 rounded-lg"
-                style={{
-                  backgroundColor: `rgba(0, 0, 0, ${(settings.backgroundMaskOpacity || 30) / 100})`
-                }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white text-xs bg-black/50 px-2 py-1 rounded">
-                  预览效果
-                </span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      )}
 
       {/* 背景效果设置 */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">

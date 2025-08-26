@@ -6,7 +6,7 @@ import { TemplateManager } from "./src/components/TemplateManager";
 import { SmartSearchCard } from "./src/components/SmartSearchCard";
 import { MasonryGrid } from "./src/components/MasonryGrid";
 import { ToastContainer, useToast } from "./src/components/Toast";
-import { LoadingSpinner, LoadingButton } from "./src/components/LoadingSpinner";
+import { LoadingSpinner } from "./src/components/LoadingSpinner";
 import { SettingsModal } from "./src/components/SettingsModal";
 import { DockBar } from "./src/components/DockBar";
 import "./style.css";
@@ -93,6 +93,44 @@ const NewTabPage = () => {
     }
   };
 
+  // 背景对象URL管理
+  const bgObjectUrlRef = useRef<string | null>(null)
+  const hydrateBackgroundFromSettings = async (s: GlobalSettings) => {
+    // 先撤销旧URL
+    if (bgObjectUrlRef.current) {
+      URL.revokeObjectURL(bgObjectUrlRef.current)
+      bgObjectUrlRef.current = null
+    }
+    if (s.backgroundImageId) {
+      try {
+        const { BackgroundImageManager } = await import('./src/utils/backgroundImageManager')
+        const url = await BackgroundImageManager.getBackgroundImageURL(s.backgroundImageId)
+        if (url) {
+          bgObjectUrlRef.current = url
+          setBackgroundImage(url)
+        } else {
+          setBackgroundImage(undefined)
+          await StorageManager.saveGlobalSettings({ backgroundImageId: undefined, backgroundImage: undefined })
+        }
+      } catch (e) {
+        console.error('背景水合失败:', e)
+        setBackgroundImage(undefined)
+        await StorageManager.saveGlobalSettings({ backgroundImageId: undefined, backgroundImage: undefined })
+      }
+    } else if (s.backgroundImage && (s.backgroundImage.startsWith('data:') || /^https?:/.test(s.backgroundImage))) {
+      // 向后兼容：允许 data URL 或 http(s)
+      setBackgroundImage(s.backgroundImage)
+    } else {
+      // 清理 blob: 残留
+      if (s.backgroundImage?.startsWith('blob:')) {
+        await StorageManager.saveGlobalSettings({ backgroundImage: undefined })
+      }
+      setBackgroundImage(undefined)
+    }
+    setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30)
+    setBackgroundBlur(s.backgroundBlur || 0)
+  }
+
   // 读取全局设置
   useEffect(() => {
     (async () => {
@@ -103,15 +141,15 @@ const NewTabPage = () => {
       setTopHintSubtitle(s.topHintSubtitle);
       setSidebarWidth(s.sidebarWidth || 256);
       setSidebarVisible(s.sidebarVisible !== false); // 默认显示
-      // 加载背景设置
-      setBackgroundImage(s.backgroundImage);
-      setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30);
-      setBackgroundBlur(s.backgroundBlur || 0);
-      // 加载卡片样式设置
-      if (s.cardStyle) {
-        setCardStyle(s.cardStyle);
-      }
+      await hydrateBackgroundFromSettings(s)
+      if (s.cardStyle) setCardStyle(s.cardStyle)
     })();
+    return () => {
+      if (bgObjectUrlRef.current) {
+        URL.revokeObjectURL(bgObjectUrlRef.current)
+        bgObjectUrlRef.current = null
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -139,14 +177,8 @@ const NewTabPage = () => {
           setTopHintEnabled(s.topHintEnabled);
           setTopHintTitle(s.topHintTitle);
           setTopHintSubtitle(s.topHintSubtitle);
-          // 更新背景设置
-          setBackgroundImage(s.backgroundImage);
-          setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30);
-          setBackgroundBlur(s.backgroundBlur || 0);
-          // 更新卡片样式设置
-          if (s.cardStyle) {
-            setCardStyle(s.cardStyle);
-          }
+          await hydrateBackgroundFromSettings(s)
+          if (s.cardStyle) setCardStyle(s.cardStyle)
         })();
       }
 
@@ -227,7 +259,7 @@ const NewTabPage = () => {
   };
 
   // 处理Dock快捷方式编辑
-  const handleDockShortcutEdit = (shortcut: DockShortcut) => {
+  const handleDockShortcutEdit = (_shortcut: DockShortcut) => {
     // 打开设置页面的Dock选项卡
     setSettingsOpen(true);
     // 这里可以添加更多逻辑来直接跳转到编辑界面
@@ -403,9 +435,9 @@ const NewTabPage = () => {
       /* 搜索框焦点状态 - 使用相同颜色但更粗的边框 */
       .smart-masonry-item .card-style-target input[type="text"]:focus {
         border-color: ${cardStyle.searchBoxBorderColor} !important;
-        border-width: 2px !important;
+        border-width: 1px !important; /* 固定边框，避免高度变化 */
         outline: none !important;
-        box-shadow: 0 0 0 1px ${cardStyle.searchBoxBorderColor}40 !important;
+        box-shadow: 0 0 0 2px ${cardStyle.searchBoxBorderColor}40 !important; /* 用阴影表现焦点 */
       }
 
       .smart-masonry-item .card-style-target input[type="text"]::placeholder {
@@ -662,20 +694,14 @@ const NewTabPage = () => {
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        onApply={(s) => {
+        onApply={async (s) => {
           setOpenBehavior(s.openBehavior)
           setTopHintEnabled(s.topHintEnabled)
           setTopHintTitle(s.topHintTitle)
           setTopHintSubtitle(s.topHintSubtitle)
           setSidebarWidth(s.sidebarWidth || 256)
-          // 应用背景设置
-          setBackgroundImage(s.backgroundImage)
-          setBackgroundMaskOpacity(s.backgroundMaskOpacity || 30)
-          setBackgroundBlur(s.backgroundBlur || 0)
-          // 应用卡片样式设置
-          if (s.cardStyle) {
-            setCardStyle(s.cardStyle)
-          }
+          await hydrateBackgroundFromSettings(s)
+          if (s.cardStyle) setCardStyle(s.cardStyle)
         }}
         onTemplatesSaved={() => {
           // 重新加载模板列表

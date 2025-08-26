@@ -32,13 +32,16 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
   }>>({});
 
   // 输入框引用
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const inputRefs = useRef<Record<string, React.RefObject<HTMLInputElement>>>({});
 
   // 初始化关键词值
   useEffect(() => {
     const initialValues: MultiKeywordValues = {};
     placeholders.forEach(placeholder => {
       initialValues[placeholder.code] = '';
+      if (!inputRefs.current[placeholder.code]) {
+        inputRefs.current[placeholder.code] = React.createRef<HTMLInputElement>()
+      }
     });
     setKeywordValues(initialValues);
   }, [template.id, placeholders]);
@@ -97,7 +100,7 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
       const nextPlaceholder = placeholders[nextIndex];
 
       setTimeout(() => {
-        inputRefs.current[nextPlaceholder.code]?.focus();
+        inputRefs.current[nextPlaceholder.code]?.current?.focus();
       }, 0);
     }
   };
@@ -113,7 +116,7 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
           validation.missingRequired.includes(p.name)
         );
         if (missingPlaceholder) {
-          inputRefs.current[missingPlaceholder.code]?.focus();
+          inputRefs.current[missingPlaceholder.code]?.current?.focus();
         }
       }
       return;
@@ -153,7 +156,7 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
                 <div className={isLastPlaceholder ? "flex space-x-2" : "relative"}>
                   <div className="flex-1 relative">
                     <input
-                      ref={(el) => (inputRefs.current[placeholder.code] = el)}
+                      ref={inputRefs.current[placeholder.code]}
                       type="text"
                       value={keywordValues[placeholder.code] || ''}
                       onChange={(e) => handleInputChange(placeholder.code, e.target.value)}
@@ -193,6 +196,7 @@ export const MultiKeywordSearchCard: React.FC<MultiKeywordSearchCardProps> = Rea
                         setActiveSuggestions(null);
                         handleSearch();
                       }}
+                      anchorRef={inputRefs.current[placeholder.code] as React.RefObject<HTMLElement>}
                     />
                   </div>
 

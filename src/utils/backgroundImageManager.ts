@@ -40,6 +40,38 @@ export class BackgroundImageManager {
     format: 'jpeg'
   };
 
+  // 运行期 URL 缓存，避免重复创建与泄露
+  private static urlCache: Map<string, string> = new Map()
+
+  /** 撤销指定图片的对象URL */
+  static revokeObjectURL(id: string) {
+    const url = this.urlCache.get(id)
+    if (url) {
+      URL.revokeObjectURL(url)
+      this.urlCache.delete(id)
+    }
+  }
+
+  /** 撤销全部对象URL（页面卸载时可调用） */
+  static revokeAllObjectURLs() {
+    for (const [_, url] of this.urlCache) {
+      URL.revokeObjectURL(url)
+    }
+    this.urlCache.clear()
+  }
+
+  /**
+   * 从 data URL 导入并保存为背景图，返回图片信息
+   */
+  static async saveBackgroundImageFromDataUrl(dataUrl: string, name = 'imported-image.png'): Promise<BackgroundImageInfo> {
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    const type = blob.type || 'image/png'
+    const file = new File([blob], name, { type })
+    return this.saveBackgroundImage(file)
+  }
+
+
   /**
    * 保存背景图片
    */
@@ -114,10 +146,17 @@ export class BackgroundImageManager {
    * 获取背景图片URL
    */
   static async getBackgroundImageURL(id: string): Promise<string | null> {
-    const data = await this.getBackgroundImage(id);
-    if (!data) return null;
+    // 命中缓存直接返回
+    const cached = this.urlCache.get(id)
+    if (cached) return cached
 
-    return URL.createObjectURL(data.blob);
+    const data = await this.getBackgroundImage(id)
+    if (!data) return null
+
+    const url = URL.createObjectURL(data.blob)
+    // 缓存并返回
+    this.urlCache.set(id, url)
+    return url
   }
 
   /**
@@ -204,10 +243,14 @@ export class BackgroundImageManager {
           // 转换为Blob
           canvas.toBlob(
             (blob) => {
-              if (blob) {
-                resolve(blob);
-              } else {
-                reject(new Error('图片压缩失败'));
+              try {
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error('图片压缩失败'));
+                }
+              } finally {
+                // 画布资源由 GC 回收；此处无需 revoke
               }
             },
             `image/${options.format || 'jpeg'}`,
@@ -218,8 +261,9 @@ export class BackgroundImageManager {
         }
       };
 
-      img.onerror = () => reject(new Error('图片加载失败'));
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('图片加载失败')) };
+      const objectUrl = URL.createObjectURL(file)
+      img.src = objectUrl;
     });
   }
 
@@ -256,9 +300,11 @@ export class BackgroundImageManager {
       const img = new Image();
       img.onload = () => {
         resolve({ width: img.width, height: img.height });
+        URL.revokeObjectURL(objectUrl)
       };
-      img.onerror = () => reject(new Error('无法获取图片尺寸'));
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('无法获取图片尺寸')) };
+      const objectUrl = URL.createObjectURL(file)
+      img.src = objectUrl;
     });
   }
 
