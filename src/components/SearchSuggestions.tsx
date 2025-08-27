@@ -168,14 +168,16 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     }
   }, [selectedIndex, suggestions, visible]);
 
-  // 监听Chrome存储变化，实现排序方式变更时的实时更新
+  // 监听Chrome存储变化，实现排序方式与历史记录变更时的实时更新
   useEffect(() => {
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName !== 'local') return;
 
-      // 监听全局设置变化
-      if (changes.globalSettings && visible && template) {
-        loadSuggestions(); // 重新加载以应用新的排序方式
+      if (!visible || !template) return;
+
+      // 全局设置变化（排序方式等）或历史记录变化（别名/关键词预设更新）
+      if (changes.globalSettings || changes.searchHistory) {
+        loadSuggestions();
       }
     };
 

@@ -1,9 +1,8 @@
 import React from 'react';
 import type { Template, MultiKeywordValues } from '../types';
 import { PlaceholderParser } from '../utils/placeholderParser';
-import { SingleKeywordSearchCard } from './SingleKeywordSearchCard';
-import { MultiKeywordSearchCard } from './MultiKeywordSearchCard';
 import { SearchCardBase } from './SearchCardBase';
+import { UnifiedKeywordSearchCard } from './UnifiedKeywordSearchCard';
 
 interface SmartSearchCardProps {
   template: Template;
@@ -44,26 +43,16 @@ export const SmartSearchCard: React.FC<SmartSearchCardProps> = React.memo(({
     );
   }
 
-  // 根据模板类型渲染对应的搜索卡片
-  if (isSingleKeyword) {
-    return (
-      <SingleKeywordSearchCard
-        template={template}
-        onSearch={onSearchSingle}
-        isSearching={isSearching}
-        className={className}
-      />
-    );
-  } else {
-    return (
-      <MultiKeywordSearchCard
-        template={template}
-        onSearch={onSearchMultiple}
-        isSearching={isSearching}
-        className={className}
-      />
-    );
-  }
+  // 统一渲染，由 Unified 决定单/多关键词模式
+  return (
+    <UnifiedKeywordSearchCard
+      template={template}
+      onSearchSingle={onSearchSingle}
+      onSearchMultiple={onSearchMultiple}
+      isSearching={isSearching}
+      className={className}
+    />
+  );
 }, (prevProps, nextProps) => {
   // 自定义比较函数，优化渲染性能
   return (
