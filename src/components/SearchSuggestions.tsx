@@ -34,6 +34,44 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const positionRef = useRef<{ top: number; left: number; width: number } | null>(null)
+  const measureRef = useRef<HTMLDivElement>(null); // 用于测量文本宽度的隐藏元素
+
+  // 计算建议项的最佳宽度
+  const calculateOptimalWidth = (suggestions: SearchHistory[], minWidth: number): number => {
+    if (!measureRef.current || suggestions.length === 0) {
+      return minWidth;
+    }
+
+    const measureEl = measureRef.current;
+    let maxWidth = minWidth;
+
+    suggestions.forEach(suggestion => {
+      // 创建临时测量元素
+      const tempSpan = document.createElement('span');
+      tempSpan.style.visibility = 'hidden';
+      tempSpan.style.position = 'absolute';
+      tempSpan.style.whiteSpace = 'nowrap';
+      tempSpan.style.fontSize = '14px'; // text-sm
+      tempSpan.style.fontFamily = getComputedStyle(measureEl).fontFamily;
+
+      // 设置文本内容（包括图标和时间的估算宽度）
+      const alias = ((suggestion as any).alias || suggestion.keyword) as string
+      const display = alias === suggestion.keyword ? alias : `${alias} (${suggestion.keyword})`
+      tempSpan.textContent = display;
+      document.body.appendChild(tempSpan);
+
+      // 计算总宽度：文本宽度 + 图标(16px) + 间距(8px) + 时间文本(约60px) + 内边距(24px)
+      const textWidth = tempSpan.offsetWidth;
+      const totalWidth = textWidth + 16 + 8 + 60 + 24;
+
+      maxWidth = Math.max(maxWidth, totalWidth);
+      document.body.removeChild(tempSpan);
+    });
+
+    // 设置最大宽度限制，避免过宽
+    const maxAllowedWidth = Math.min(window.innerWidth * 0.6, 500);
+    return Math.min(maxWidth, maxAllowedWidth);
+  };
 
   // 基于 anchor 定位（仅在可见且锚点存在时）
   useLayoutEffect(() => {
@@ -42,7 +80,12 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       const el = anchorRef?.current
       if (!el) { setPosition(null); positionRef.current = null; return }
       const r = el.getBoundingClientRect()
-      const next = { top: r.bottom + 4, left: r.left, width: r.width }
+
+      // 计算最佳宽度
+      const minWidth = r.width;
+      const optimalWidth = calculateOptimalWidth(suggestions, minWidth);
+
+      const next = { top: r.bottom + 4, left: r.left, width: optimalWidth }
       const prev = positionRef.current
       if (!prev || prev.top !== next.top || prev.left !== next.left || prev.width !== next.width) {
         positionRef.current = next
@@ -56,7 +99,7 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
     }
-  }, [visible, anchorRef])
+  }, [visible, anchorRef, suggestions]) // 添加 suggestions 依赖
 
   // 加载搜索建议
   const loadSuggestions = async () => {
@@ -198,11 +241,23 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   if (!visible) return null
 
   const panel = (
-    <div
-      ref={containerRef}
-      className="fixed bg-white/95 backdrop-blur border border-gray-200 rounded-md shadow-lg z-[1000] max-h-64 overflow-y-auto"
-      style={{ top: position?.top, left: position?.left, width: position?.width }}
-    >
+    <>
+      {/* 隐藏的测量元素 */}
+      <div
+        ref={measureRef}
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          fontSize: '14px'
+        }}
+      />
+
+      <div
+        ref={containerRef}
+        className="fixed bg-white/95 backdrop-blur border border-gray-200 rounded-md shadow-lg z-[1000] max-h-64 overflow-y-auto"
+        style={{ top: position?.top, left: position?.left, width: position?.width }}
+      >
       {loading ? (
         <div className="p-3 text-center text-gray-500 text-sm">
           加载中...
@@ -245,7 +300,8 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 
   // Portal 渲染为 overlay，避免影响瀑布流测量
@@ -322,12 +378,23 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({
             />
           )}
         </svg>
-        <span
-          className="truncate text-sm"
-          dangerouslySetInnerHTML={{
-            __html: SearchMatcher.highlightMatch(suggestion.keyword, query)
-          }}
-        />
+        <span className="text-sm whitespace-nowrap">
+          {(() => {
+            const alias = ((suggestion as any).alias || suggestion.keyword) as string
+            const prefer = SearchMatcher.getPreferredMatchField(suggestion, query)
+            const aliasHTML = SearchMatcher.highlightMatch(alias, query)
+            const keywordHTML = SearchMatcher.highlightMatch(suggestion.keyword, query)
+            if (alias === suggestion.keyword) {
+              return <span dangerouslySetInnerHTML={{ __html: prefer === 'alias' || prefer === 'keyword' ? aliasHTML : alias }} />
+            }
+            return (
+              <>
+                <span className="text-sm text-gray-900" dangerouslySetInnerHTML={{ __html: prefer === 'alias' ? aliasHTML : alias }} />
+                <span className="text-xs text-gray-500 ml-2" dangerouslySetInnerHTML={{ __html: `(${prefer === 'keyword' ? keywordHTML : suggestion.keyword})` }} />
+              </>
+            )
+          })()}
+        </span>
       </div>
       <span className="text-xs text-gray-400 ml-2 flex-shrink-0">
         {sortType === 'frequency'

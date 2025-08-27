@@ -24,12 +24,21 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
   const [searchQuery, setSearchQuery] = useState('');
   const [sortType, setSortType] = useState<'time' | 'frequency'>('time');
 
+  // 新增/编辑表单状态
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formKeyword, setFormKeyword] = useState('')
+  const [formAlias, setFormAlias] = useState('')
+  const [aliasError, setAliasError] = useState<string | null>(null)
+  const [aliasChecking, setAliasChecking] = useState(false)
+  const [aliasDirty, setAliasDirty] = useState(false) // 用户是否手动修改过别名
+
   // 加载该占位符的关键词预设
   const loadHistory = async () => {
     try {
       setLoading(true);
       const placeholderHistory = await StorageManager.getSortedPlaceholderSearchHistory(
-        template.id, 
+        template.id,
         placeholder.code
       );
       setHistory(placeholderHistory);
@@ -67,10 +76,12 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, [isOpen]);
 
-  // 过滤关键词预设（保持原有排序）
+  // 过滤关键词预设（保持原有排序）：支持关键词/别名
   const filteredHistory = history.filter(h => {
     if (!searchQuery.trim()) return true;
-    return h.keyword.toLowerCase().includes(searchQuery.toLowerCase().trim());
+    const q = searchQuery.toLowerCase().trim();
+    const alias = (h as any).alias || h.keyword
+    return h.keyword.toLowerCase().includes(q) || alias.toLowerCase().includes(q);
   });
 
   // 切换选择状态
@@ -105,6 +116,68 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
     }
   };
 
+  // 打开新增表单
+  const openCreateForm = () => {
+    setFormOpen(true)
+    setEditingId(null)
+    setFormKeyword('')
+    setFormAlias('')
+    setAliasError(null)
+    setAliasDirty(false)
+  }
+
+  // 打开编辑表单
+  const openEditForm = (item: SearchHistory) => {
+    setFormOpen(true)
+    setEditingId(item.id)
+    setFormKeyword(item.keyword)
+    setFormAlias((item as any).alias || item.keyword)
+    setAliasError(null)
+    setAliasDirty(false)
+  }
+
+  // 实时校验别名唯一性
+  useEffect(() => {
+    if (!formOpen) return
+    const controller = { cancelled: false }
+    const run = async () => {
+      setAliasChecking(true)
+      const ok = await StorageManager.isAliasAvailable(template.id, placeholder.code, formAlias || formKeyword, editingId || undefined)
+      if (!controller.cancelled) {
+        setAliasChecking(false)
+        setAliasError(ok ? null : '该别名已存在，请更换')
+      }
+    }
+    // 仅在用户修改过别名或 keyword 改变时触发
+    if (aliasDirty || editingId === null) {
+      if ((formAlias || formKeyword).trim()) {
+        run()
+      } else {
+        setAliasError('别名不能为空')
+      }
+    }
+    return () => { controller.cancelled = true }
+  }, [formAlias, formKeyword, aliasDirty, formOpen, editingId])
+
+  // 提交保存
+  const handleSubmit = async () => {
+    const aliasToUse = (formAlias || formKeyword).trim()
+    if (!formKeyword.trim()) { alert('关键词不能为空'); return }
+    if (!aliasToUse) { alert('别名不能为空'); return }
+    if (aliasError) { alert(aliasError); return }
+    const res = await StorageManager.upsertPlaceholderPreset({
+      id: editingId || undefined,
+      templateId: template.id,
+      placeholderName: placeholder.code,
+      keyword: formKeyword.trim(),
+      alias: aliasToUse
+    })
+    if (!res.ok) { alert((res as any).error || '保存失败'); return }
+    setFormOpen(false)
+    await loadHistory()
+    onHistoryChange?.()
+  }
+
   // 批量删除选中的关键词预设
   const handleDeleteSelected = async () => {
     if (selectedItems.size === 0) return;
@@ -136,7 +209,7 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
     if (minutes < 60) return `${minutes}分钟前`;
     if (hours < 24) return `${hours}小时前`;
     if (days < 7) return `${days}天前`;
-    
+
     return new Date(timestamp).toLocaleDateString('zh-CN');
   };
 
@@ -168,16 +241,24 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
                 </span> - {placeholder.name}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={openCreateForm}
+                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                新增预设
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
-          
+
           <div className="flex items-center gap-2 mt-2">
             <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
               {history.length} 条记录
@@ -186,6 +267,60 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
               排序方式：{sortType === 'time' ? '按时间' : '按频率'}
             </span>
           </div>
+
+          {/* 新增/编辑表单 */}
+          {formOpen && (
+            <div className="p-4 border-t border-gray-100 bg-gray-50/60">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">关键词</label>
+                  <input
+                    type="text"
+                    value={formKeyword}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setFormKeyword(v)
+                      if (!aliasDirty) setFormAlias(v) // 默认同步别名
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="请输入关键词"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">别名</label>
+                  <input
+                    type="text"
+                    value={formAlias}
+                    onChange={(e) => { setFormAlias(e.target.value); setAliasDirty(true) }}
+                    className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 ${aliasError ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                    placeholder="可选，默认与关键词相同"
+                  />
+                  {aliasChecking && (
+                    <div className="text-xs text-gray-400 mt-1">检查中...</div>
+                  )}
+                  {!aliasChecking && aliasError && (
+                    <div className="text-xs text-red-500 mt-1">{aliasError}</div>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
+                <button
+                  onClick={() => setFormOpen(false)}
+                  className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                  disabled={!!aliasError || aliasChecking || !formKeyword.trim()}
+                >
+                  {editingId ? '保存修改' : '添加预设'}
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* 内容区域 */}
@@ -255,6 +390,7 @@ export const PlaceholderHistoryManager: React.FC<PlaceholderHistoryManagerProps>
                       isSelected={selectedItems.has(item.id)}
                       onToggleSelect={() => toggleSelection(item.id)}
                       onDelete={() => handleDeleteHistory(item.id)}
+                      onEdit={(it) => openEditForm(it)}
                       formatTime={formatTime}
                       formatCreatedTime={formatCreatedTime}
                     />
@@ -287,6 +423,7 @@ interface HistoryItemProps {
   isSelected: boolean;
   onToggleSelect: () => void;
   onDelete: () => void;
+  onEdit: (item: SearchHistory) => void;
   formatTime: (timestamp: number) => string;
   formatCreatedTime: (timestamp: number) => string;
 }
@@ -296,9 +433,11 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   isSelected,
   onToggleSelect,
   onDelete,
+  onEdit,
   formatTime,
   formatCreatedTime
 }) => {
+  const alias = (history as any).alias || history.keyword
   return (
     <div className={`p-3 rounded border transition-colors ${
       isSelected ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:bg-gray-50'
@@ -310,32 +449,45 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
           onChange={onToggleSelect}
           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {history.keyword}
-            </p>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {alias}
+                {alias !== history.keyword && (
+                  <span className="ml-2 text-xs text-gray-500">（原词：{history.keyword}）</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
               <span>使用 {history.usageCount || 1} 次</span>
               <span>•</span>
               <span>{formatTime(history.timestamp)}</span>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between mt-1">
             <p className="text-xs text-gray-500">
               创建于 {formatCreatedTime(history.createdAt || history.timestamp)}
             </p>
-            <button
-              onClick={onDelete}
-              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-              title="删除此记录"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onEdit(history)}
+                className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 text-gray-600"
+              >
+                编辑
+              </button>
+              <button
+                onClick={onDelete}
+                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                title="删除此记录"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>

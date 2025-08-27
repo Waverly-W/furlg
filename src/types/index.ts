@@ -26,6 +26,7 @@ export interface SearchHistory {
   id: string;
   templateId: string;    // 关联的模板ID
   keyword: string;       // 搜索关键词
+  alias?: string;        // 可选：别名（用于简短输入与展示，默认等于keyword）
   timestamp: number;     // 搜索时间戳
   usageCount?: number;   // 使用次数（可选，用于向后兼容）
   createdAt?: number;    // 创建时间（可选，用于向后兼容）

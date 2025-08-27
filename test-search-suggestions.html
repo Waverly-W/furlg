@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索建议下拉框宽度测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .demo-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .search-input {
+            width: 300px;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .suggestions-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 256px;
+            overflow-y: auto;
+            margin-top: 4px;
+        }
+        .suggestion-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-between;
+            transition: all 0.15s;
+            border-left: 4px solid transparent;
+        }
+        .suggestion-item:hover {
+            background: #f3f4f6;
+        }
+        .suggestion-item.selected {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left-color: #3b82f6;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .suggestion-text {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .suggestion-meta {
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+        .icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            flex-shrink: 0;
+            color: #9ca3af;
+        }
+        .test-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        .test-info h3 {
+            color: #0c4a6e;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .test-info p {
+            color: #0369a1;
+            margin: 0;
+            font-size: 14px;
+        }
+        .width-indicator {
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #ef4444;
+            opacity: 0.7;
+        }
+        .width-label {
+            position: absolute;
+            bottom: -40px;
+            right: 0;
+            font-size: 12px;
+            color: #ef4444;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">
+            🔍 搜索建议下拉框宽度测试
+        </h1>
+
+        <div class="test-info">
+            <h3>测试说明</h3>
+            <p>这个页面用于测试搜索建议下拉框的宽度自适应功能。下拉框应该根据最长的历史记录文本自动调整宽度，确保所有内容都能完整显示。</p>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="text-xl font-semibold text-gray-800 mb-6">修改前效果（固定宽度）</h2>
+            <div class="relative inline-block">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    placeholder="输入搜索关键词..."
+                    id="input-before"
+                    autocomplete="off"
+                >
+                <div id="dropdown-before" class="suggestions-dropdown" style="display: none; width: 300px;">
+                    <!-- 建议项将通过JavaScript动态生成 -->
+                </div>
+                <div class="width-indicator"></div>
+                <div class="width-label">固定宽度: 300px</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="text-xl font-semibold text-gray-800 mb-6">修改后效果（自适应宽度）</h2>
+            <div class="relative inline-block">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    placeholder="输入搜索关键词..."
+                    id="input-after"
+                    autocomplete="off"
+                >
+                <div id="dropdown-after" class="suggestions-dropdown" style="display: none;">
+                    <!-- 建议项将通过JavaScript动态生成 -->
+                </div>
+                <div class="width-indicator" id="width-indicator-after"></div>
+                <div class="width-label" id="width-label-after">自适应宽度</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">测试数据</h2>
+            <p class="text-gray-600 mb-4">以下是用于测试的模拟历史记录数据，包含不同长度的搜索关键词：</p>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <ul class="text-sm text-gray-700 space-y-1" id="test-data-list">
+                    <!-- 测试数据将通过JavaScript生成 -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟历史记录数据，包含不同长度的搜索关键词
+        const mockHistoryData = [
+            { keyword: "React", timestamp: Date.now() - 1000 * 60 * 5, usageCount: 15 },
+            { keyword: "JavaScript高级编程技巧", timestamp: Date.now() - 1000 * 60 * 30, usageCount: 8 },
+            { keyword: "Vue.js", timestamp: Date.now() - 1000 * 60 * 60, usageCount: 12 },
+            { keyword: "TypeScript类型系统深入理解与实践应用", timestamp: Date.now() - 1000 * 60 * 60 * 2, usageCount: 3 },
+            { keyword: "CSS Grid布局", timestamp: Date.now() - 1000 * 60 * 60 * 4, usageCount: 6 },
+            { keyword: "Node.js后端开发最佳实践指南", timestamp: Date.now() - 1000 * 60 * 60 * 8, usageCount: 4 },
+            { keyword: "HTML", timestamp: Date.now() - 1000 * 60 * 60 * 12, usageCount: 20 },
+            { keyword: "前端性能优化策略与工具使用详解", timestamp: Date.now() - 1000 * 60 * 60 * 24, usageCount: 2 }
+        ];
+
+        // 格式化时间
+        function formatTime(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const minutes = Math.floor(diff / (1000 * 60));
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (minutes < 1) return '刚刚';
+            if (minutes < 60) return `${minutes}分钟前`;
+            if (hours < 24) return `${hours}小时前`;
+            if (days < 7) return `${days}天前`;
+            
+            return new Date(timestamp).toLocaleDateString();
+        }
+
+        // 创建建议项HTML
+        function createSuggestionItem(suggestion, index, isSelected = false) {
+            return `
+                <div class="suggestion-item ${isSelected ? 'selected' : ''}" data-index="${index}">
+                    <div style="display: flex; align-items: center; flex: 1; min-width: 0;">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="suggestion-text">${suggestion.keyword}</span>
+                    </div>
+                    <span class="suggestion-meta">${formatTime(suggestion.timestamp)}</span>
+                </div>
+            `;
+        }
+
+        // 计算最佳宽度
+        function calculateOptimalWidth(suggestions, minWidth) {
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.visibility = 'hidden';
+            tempDiv.style.whiteSpace = 'nowrap';
+            tempDiv.style.fontSize = '14px';
+            tempDiv.style.fontFamily = getComputedStyle(document.body).fontFamily;
+            document.body.appendChild(tempDiv);
+
+            let maxWidth = minWidth;
+
+            suggestions.forEach(suggestion => {
+                tempDiv.textContent = suggestion.keyword;
+                const textWidth = tempDiv.offsetWidth;
+                // 计算总宽度：文本宽度 + 图标(16px) + 间距(8px) + 时间文本(约60px) + 内边距(32px)
+                const totalWidth = textWidth + 16 + 8 + 60 + 32;
+                maxWidth = Math.max(maxWidth, totalWidth);
+            });
+
+            document.body.removeChild(tempDiv);
+
+            // 设置最大宽度限制
+            const maxAllowedWidth = Math.min(window.innerWidth * 0.6, 500);
+            return Math.min(maxWidth, maxAllowedWidth);
+        }
+
+        // 显示建议下拉框
+        function showSuggestions(inputId, dropdownId, useAdaptiveWidth = false) {
+            const dropdown = document.getElementById(dropdownId);
+            const input = document.getElementById(inputId);
+            
+            // 生成建议项HTML
+            const suggestionsHTML = mockHistoryData.map((suggestion, index) => 
+                createSuggestionItem(suggestion, index, index === 0)
+            ).join('');
+            
+            dropdown.innerHTML = suggestionsHTML;
+            
+            if (useAdaptiveWidth) {
+                // 计算并设置自适应宽度
+                const minWidth = input.offsetWidth;
+                const optimalWidth = calculateOptimalWidth(mockHistoryData, minWidth);
+                dropdown.style.width = `${optimalWidth}px`;
+                
+                // 更新宽度指示器
+                const indicator = document.getElementById('width-indicator-after');
+                const label = document.getElementById('width-label-after');
+                if (indicator && label) {
+                    indicator.style.width = `${optimalWidth}px`;
+                    label.textContent = `自适应宽度: ${optimalWidth}px`;
+                }
+            }
+            
+            dropdown.style.display = 'block';
+        }
+
+        // 隐藏建议下拉框
+        function hideSuggestions(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            dropdown.style.display = 'none';
+        }
+
+        // 初始化事件监听器
+        function initializeEventListeners() {
+            // 修改前的输入框
+            const inputBefore = document.getElementById('input-before');
+            inputBefore.addEventListener('focus', () => {
+                showSuggestions('input-before', 'dropdown-before', false);
+            });
+            inputBefore.addEventListener('blur', () => {
+                setTimeout(() => hideSuggestions('dropdown-before'), 200);
+            });
+
+            // 修改后的输入框
+            const inputAfter = document.getElementById('input-after');
+            inputAfter.addEventListener('focus', () => {
+                showSuggestions('input-after', 'dropdown-after', true);
+            });
+            inputAfter.addEventListener('blur', () => {
+                setTimeout(() => hideSuggestions('dropdown-after'), 200);
+            });
+        }
+
+        // 显示测试数据
+        function displayTestData() {
+            const testDataList = document.getElementById('test-data-list');
+            testDataList.innerHTML = mockHistoryData.map((item, index) => 
+                `<li>${index + 1}. "${item.keyword}" (${item.keyword.length}个字符)</li>`
+            ).join('');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEventListeners();
+            displayTestData();
+        });
+    </script>
+</body>
+</html>

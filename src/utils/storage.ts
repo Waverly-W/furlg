@@ -190,18 +190,24 @@ export class StorageManager {
       const result = await chrome.storage.local.get(STORAGE_KEYS.SEARCH_HISTORY);
       let allHistory = result[STORAGE_KEYS.SEARCH_HISTORY] || DEFAULT_DATA.searchHistory;
 
-      // 数据迁移：为旧数据添加新字段
+      // 数据迁移：为旧数据添加新字段（usageCount/createdAt/alias）
       let needsMigration = false;
       allHistory = allHistory.map((h: SearchHistory) => {
-        if (h.usageCount === undefined || h.createdAt === undefined) {
+        const patched: SearchHistory = { ...h } as SearchHistory
+        if (patched.usageCount === undefined) {
           needsMigration = true;
-          return {
-            ...h,
-            usageCount: h.usageCount || 1,
-            createdAt: h.createdAt || h.timestamp
-          };
+          patched.usageCount = 1
         }
-        return h;
+        if (patched.createdAt === undefined) {
+          needsMigration = true;
+          patched.createdAt = patched.timestamp
+        }
+        if ((patched as any).alias === undefined) {
+          // 向后兼容：默认别名等于关键词
+          needsMigration = true;
+          ;(patched as any).alias = patched.keyword
+        }
+        return patched
       });
 
       // 如果需要迁移，保存更新后的数据
@@ -330,6 +336,10 @@ export class StorageManager {
         if (!allHistory[existingIndex].placeholderName) {
           allHistory[existingIndex].placeholderName = placeholderName;
         }
+        // 确保旧记录也有alias字段（默认等于keyword）
+        if (!(allHistory[existingIndex] as any).alias) {
+          ;(allHistory[existingIndex] as any).alias = allHistory[existingIndex].keyword
+        }
       } else {
         // 添加新记录
         const now = Date.now();
@@ -337,6 +347,7 @@ export class StorageManager {
           id: `${templateId}_${placeholderName}_${now}_${Math.random().toString(36).substr(2, 9)}`,
           templateId,
           keyword,
+          alias: keyword, // 默认别名等于关键词
           timestamp: now,
           usageCount: 1,
           createdAt: now,
@@ -568,4 +579,77 @@ export class StorageManager {
       throw error;
     }
   }
+
+  // ==================== 关键词预设（占位符历史）CRUD 与别名校验 ====================
+
+  /** 新增或编辑占位符关键词预设（支持别名唯一性校验） */
+  static async upsertPlaceholderPreset(params: {
+    id?: string
+    templateId: string
+    placeholderName: string
+    keyword: string
+    alias?: string
+  }): Promise<{ ok: true } | { ok: false; error: string } > {
+    const { id, templateId, placeholderName, keyword } = params
+    const alias = (params.alias ?? keyword).trim()
+    const kw = keyword.trim()
+    if (!kw) return { ok: false, error: '关键词不能为空' }
+    if (!alias) return { ok: false, error: '别名不能为空' }
+
+    // 唯一性：同模板+同占位符范围内别名唯一（忽略大小写）
+    const all = await this.getSearchHistory()
+    const conflict = all.find(h =>
+      h.templateId === templateId &&
+      (h.placeholderName === placeholderName || (!h.placeholderName && placeholderName === 'keyword')) &&
+      (h as any).alias?.toLowerCase() === alias.toLowerCase() &&
+      (!id || h.id !== id)
+    )
+    if (conflict) {
+      return { ok: false, error: '别名已存在，请更换一个' }
+    }
+
+    // 如果传入id则更新，否则新增
+    if (id) {
+      const idx = all.findIndex(h => h.id === id)
+      if (idx === -1) return { ok: false, error: '记录不存在或已删除' }
+      const prev = all[idx]
+      all[idx] = {
+        ...prev,
+        keyword: kw,
+        alias,
+        timestamp: Date.now()
+      }
+    } else {
+      const now = Date.now()
+      const newItem: SearchHistory = {
+        id: `${templateId}_${placeholderName}_${now}_${Math.random().toString(36).slice(2, 9)}`,
+        templateId,
+        keyword: kw,
+        alias,
+        timestamp: now,
+        usageCount: 1,
+        createdAt: now,
+        placeholderName
+      }
+      all.unshift(newItem)
+    }
+
+    // 限制总量
+    const limited = all.sort((a, b) => b.timestamp - a.timestamp).slice(0, 100)
+    await chrome.storage.local.set({ [STORAGE_KEYS.SEARCH_HISTORY]: limited })
+    return { ok: true }
+  }
+
+  /** 校验占位符范围内别名是否可用 */
+  static async isAliasAvailable(templateId: string, placeholderName: string, alias: string, excludeId?: string): Promise<boolean> {
+    const all = await this.getSearchHistory()
+    const lower = alias.trim().toLowerCase()
+    return !all.some(h =>
+      h.templateId === templateId &&
+      (h.placeholderName === placeholderName || (!h.placeholderName && placeholderName === 'keyword')) &&
+      (h as any).alias?.toLowerCase() === lower &&
+      (!excludeId || h.id !== excludeId)
+    )
+  }
+
 }
