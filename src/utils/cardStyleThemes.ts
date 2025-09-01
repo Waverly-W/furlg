@@ -252,7 +252,10 @@ export const CARD_STYLE_THEMES: CardStyleTheme[] = [
 
 // 获取默认主题（与浅色主题保持一致）
 export const getDefaultCardStyle = (): CardStyleSettings => ({
-  ...LIGHT_THEME
+  ...LIGHT_THEME,
+  // 默认宽度范围，影响瀑布流列数
+  cardMinWidth: 240,
+  cardMaxWidth: 360
 });
 
 // 根据名称获取主题
@@ -264,6 +267,9 @@ export const getThemeByName = (name: string): CardStyleTheme | undefined => {
 export const validateCardStyleSettings = (settings: Partial<CardStyleSettings>): CardStyleSettings => {
   const defaultSettings = getDefaultCardStyle();
   
+  const minWidth = Math.max(180, Math.min(480, settings.cardMinWidth ?? defaultSettings.cardMinWidth ?? 240));
+  const maxWidth = Math.max(minWidth, Math.min(640, settings.cardMaxWidth ?? defaultSettings.cardMaxWidth ?? 360));
+
   return {
     // 卡片布局设置
     cardSpacing: Math.max(0, Math.min(50, settings.cardSpacing ?? defaultSettings.cardSpacing)),
@@ -271,18 +277,20 @@ export const validateCardStyleSettings = (settings: Partial<CardStyleSettings>):
     cardOpacity: Math.max(0, Math.min(100, settings.cardOpacity ?? defaultSettings.cardOpacity)),
     cardMaskOpacity: Math.max(0, Math.min(100, settings.cardMaskOpacity ?? defaultSettings.cardMaskOpacity)),
     cardBlurStrength: Math.max(8, Math.min(24, settings.cardBlurStrength ?? defaultSettings.cardBlurStrength)),
+    cardMinWidth: minWidth,
+    cardMaxWidth: maxWidth,
 
     // 卡片边框设置
     cardBorderEnabled: settings.cardBorderEnabled ?? defaultSettings.cardBorderEnabled,
     cardBorderColor: settings.cardBorderColor ?? defaultSettings.cardBorderColor,
     cardBorderWidth: Math.max(0, Math.min(5, settings.cardBorderWidth ?? defaultSettings.cardBorderWidth)),
     cardBorderStyle: settings.cardBorderStyle ?? defaultSettings.cardBorderStyle,
-    
+
     // 卡片标题样式
     titleFontSize: Math.max(12, Math.min(24, settings.titleFontSize ?? defaultSettings.titleFontSize)),
     titleFontColor: settings.titleFontColor ?? defaultSettings.titleFontColor,
     titleFontWeight: settings.titleFontWeight ?? defaultSettings.titleFontWeight,
-    
+
     // 搜索框样式
     searchBoxBorderRadius: Math.max(0, Math.min(25, settings.searchBoxBorderRadius ?? defaultSettings.searchBoxBorderRadius)),
     searchBoxBackgroundColor: settings.searchBoxBackgroundColor ?? defaultSettings.searchBoxBackgroundColor,
@@ -290,7 +298,7 @@ export const validateCardStyleSettings = (settings: Partial<CardStyleSettings>):
     searchBoxFontSize: Math.max(12, Math.min(18, settings.searchBoxFontSize ?? defaultSettings.searchBoxFontSize)),
     searchBoxTextColor: settings.searchBoxTextColor ?? defaultSettings.searchBoxTextColor,
     searchBoxPlaceholderColor: settings.searchBoxPlaceholderColor ?? defaultSettings.searchBoxPlaceholderColor,
-    
+
     // 搜索按钮样式
     searchButtonBorderRadius: Math.max(0, Math.min(25, settings.searchButtonBorderRadius ?? defaultSettings.searchButtonBorderRadius)),
     searchButtonBackgroundColor: settings.searchButtonBackgroundColor ?? defaultSettings.searchButtonBackgroundColor,

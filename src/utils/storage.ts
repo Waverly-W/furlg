@@ -17,6 +17,8 @@ const DEFAULT_CARD_STYLE: CardStyleSettings = {
   cardOpacity: 98,
   cardMaskOpacity: 8,
   cardBlurStrength: 16,
+  cardMinWidth: 240,
+  cardMaxWidth: 360,
 
   // 卡片边框设置
   cardBorderEnabled: true,

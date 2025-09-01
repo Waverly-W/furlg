@@ -5,6 +5,8 @@ interface MasonryGridProps {
   children: React.ReactNode;
   className?: string;
   columnWidth?: number;
+  minColumnWidth?: number;
+  maxColumnWidth?: number;
   columnGutter?: number;
   rowGutter?: number;
   maxColumnCount?: number;
@@ -15,6 +17,8 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
   children,
   className = '',
   columnWidth = 280,
+  minColumnWidth,
+  maxColumnWidth,
   columnGutter = 24,
   rowGutter,
   maxColumnCount = 4
@@ -23,6 +27,8 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
     <SmartMasonryGrid
       className={className}
       columnWidth={columnWidth}
+      minColumnWidth={minColumnWidth}
+      maxColumnWidth={maxColumnWidth}
       columnGutter={columnGutter}
       rowGutter={rowGutter}
       maxColumnCount={maxColumnCount}

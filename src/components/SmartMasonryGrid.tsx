@@ -3,7 +3,11 @@ import React, { useMemo, useRef, useEffect, useState } from 'react';
 interface SmartMasonryGridProps {
   children: React.ReactNode;
   className?: string;
+  // 兼容旧用法：给定一个参考列宽
   columnWidth?: number;
+  // 新增：列最小/最大宽度（优先于 columnWidth，用于自适应列数计算）
+  minColumnWidth?: number;
+  maxColumnWidth?: number;
   columnGutter?: number;
   rowGutter?: number;
   maxColumnCount?: number;
@@ -20,6 +24,8 @@ export const SmartMasonryGrid: React.FC<SmartMasonryGridProps> = ({
   children,
   className = '',
   columnWidth = 280,
+  minColumnWidth,
+  maxColumnWidth,
   columnGutter = 24,
   rowGutter,
   maxColumnCount = 4
@@ -63,24 +69,35 @@ export const SmartMasonryGrid: React.FC<SmartMasonryGridProps> = ({
     }));
   }, [children, itemHeights]);
 
+  // 计算用于列数推导的参考列宽（支持 min/max 列宽约束）
+  const referenceColumnWidth = useMemo(() => {
+    const minW = typeof minColumnWidth === 'number' ? minColumnWidth : columnWidth;
+    const maxW = typeof maxColumnWidth === 'number' ? maxColumnWidth : columnWidth;
+    return Math.max(minW, Math.min(maxW, columnWidth));
+  }, [columnWidth, minColumnWidth, maxColumnWidth]);
+
   // 计算列数
   const columnCount = useMemo(() => {
     if (containerWidth === 0) return 1;
-    
+
     const availableWidth = containerWidth - columnGutter;
-    const columnWithGutter = columnWidth + columnGutter;
+    const columnWithGutter = referenceColumnWidth + columnGutter;
     const calculatedColumns = Math.floor(availableWidth / columnWithGutter);
-    
+
     return Math.min(Math.max(1, calculatedColumns), maxColumnCount);
-  }, [containerWidth, columnWidth, columnGutter, maxColumnCount]);
+  }, [containerWidth, referenceColumnWidth, columnGutter, maxColumnCount]);
 
   // 计算实际列宽
   const actualColumnWidth = useMemo(() => {
-    if (containerWidth === 0 || columnCount === 0) return columnWidth;
-    
+    if (containerWidth === 0 || columnCount === 0) return referenceColumnWidth;
+
     const totalGutterWidth = (columnCount - 1) * columnGutter;
-    return (containerWidth - totalGutterWidth) / columnCount;
-  }, [containerWidth, columnCount, columnGutter, columnWidth]);
+    const width = (containerWidth - totalGutterWidth) / columnCount;
+    // 应用最大宽度上限（如果提供）
+    const clampedMax = typeof maxColumnWidth === 'number' ? maxColumnWidth : Infinity;
+    const clampedMin = typeof minColumnWidth === 'number' ? minColumnWidth : 0;
+    return Math.max(clampedMin, Math.min(clampedMax, width));
+  }, [containerWidth, columnCount, columnGutter, referenceColumnWidth, maxColumnWidth, minColumnWidth]);
 
   // 智能布局算法 - 最小高度优先
   const layoutItems = useMemo(() => {
@@ -227,7 +244,7 @@ const MasonryItemWrapper: React.FC<MasonryItemWrapperProps> = ({
     // 使用ResizeObserver监听高度变化
     const resizeObserver = new ResizeObserver(measureHeight);
     resizeObserver.observe(itemRef.current);
-    
+
     // 初始测量
     measureHeight();
 

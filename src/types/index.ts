@@ -66,6 +66,8 @@ export interface CardStyleSettings {
   cardOpacity: number             // 卡片透明度（0-100）
   cardMaskOpacity: number         // 背景遮罩透明度（0-100）
   cardBlurStrength: number        // 背景模糊强度（8-24px）
+  cardMinWidth?: number           // 卡片最小宽度（px，可选，影响瀑布流列数）
+  cardMaxWidth?: number           // 卡片最大宽度（px，可选，影响瀑布流列数）
 
   // 卡片边框设置
   cardBorderEnabled: boolean      // 是否显示边框

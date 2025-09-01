@@ -654,7 +654,15 @@ const NewTabPage = () => {
               <div className="px-6 md:px-8 py-8 pb-16">
                 {/* 模板卡片瀑布流 */}
                 <div className="max-w-7xl mx-auto">
-                  <MasonryGrid>
+                  <MasonryGrid
+                    columnGutter={cardStyle.cardSpacing}
+                    rowGutter={cardStyle.cardSpacing}
+                    // 传递宽度范围以自适应列数
+                    columnWidth={cardStyle.cardMinWidth ?? 280}
+                    minColumnWidth={cardStyle.cardMinWidth}
+                    maxColumnWidth={cardStyle.cardMaxWidth}
+                    maxColumnCount={6}
+                  >
                       {templates.map((template) => (
                         <div
                           key={template.id}

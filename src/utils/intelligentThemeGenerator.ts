@@ -69,12 +69,12 @@ function generateAccessibleTextColor(backgroundColor: [number, number, number]):
   if (isAccessibleContrast([0, 0, 0], backgroundColor, 'AA')) {
     return [0, 0, 0];
   }
-  
+
   // 再尝试纯白色
   if (isAccessibleContrast([255, 255, 255], backgroundColor, 'AA')) {
     return [255, 255, 255];
   }
-  
+
   // 如果都不行，生成对比度足够的灰色
   const [h, s, l] = rgbToHsl(...backgroundColor);
   const targetL = l > 50 ? 15 : 85; // 如果背景较亮用深色，否则用浅色
@@ -254,6 +254,11 @@ async function createThemeFromScheme(
     cardMaskOpacity: 15,
     cardBlurStrength: 12,
 
+    // 默认宽度范围（可根据主题适配扩展）
+    cardMinWidth: 240,
+    cardMaxWidth: 360,
+
+
     // 卡片边框设置
     cardBorderEnabled: true,
     cardBorderColor: scheme.border,
@@ -419,7 +424,7 @@ export function validateThemeAccessibility(theme: IntelligentTheme): {
 } {
   const issues: string[] = [];
   const settings = theme.settings;
-  
+
   // 解析颜色
   const parseHex = (hex: string): [number, number, number] => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -427,7 +432,7 @@ export function validateThemeAccessibility(theme: IntelligentTheme): {
     const b = parseInt(hex.slice(5, 7), 16);
     return [r, g, b];
   };
-  
+
   try {
     const cardBg = parseHex(settings.cardBackgroundColor);
     const titleColor = parseHex(settings.titleFontColor);
@@ -435,26 +440,26 @@ export function validateThemeAccessibility(theme: IntelligentTheme): {
     const searchBoxText = parseHex(settings.searchBoxTextColor);
     const buttonBg = parseHex(settings.searchButtonBackgroundColor);
     const buttonText = parseHex(settings.searchButtonTextColor);
-    
+
     // 检查标题对比度
     if (!isAccessibleContrast(titleColor, cardBg, 'AA')) {
       issues.push('标题文字对比度不足');
     }
-    
+
     // 检查搜索框文字对比度
     if (!isAccessibleContrast(searchBoxText, searchBoxBg, 'AA')) {
       issues.push('搜索框文字对比度不足');
     }
-    
+
     // 检查按钮文字对比度
     if (!isAccessibleContrast(buttonText, buttonBg, 'AA')) {
       issues.push('按钮文字对比度不足');
     }
-    
+
   } catch (error) {
     issues.push('颜色格式解析错误');
   }
-  
+
   return {
     isValid: issues.length === 0,
     issues
@@ -466,7 +471,7 @@ export function validateThemeAccessibility(theme: IntelligentTheme): {
  */
 export function optimizeThemeAccessibility(theme: IntelligentTheme): IntelligentTheme {
   const settings = { ...theme.settings };
-  
+
   // 解析颜色
   const parseHex = (hex: string): [number, number, number] => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -474,26 +479,26 @@ export function optimizeThemeAccessibility(theme: IntelligentTheme): Intelligent
     const b = parseInt(hex.slice(5, 7), 16);
     return [r, g, b];
   };
-  
+
   try {
     const cardBg = parseHex(settings.cardBackgroundColor);
     const searchBoxBg = parseHex(settings.searchBoxBackgroundColor);
     const buttonBg = parseHex(settings.searchButtonBackgroundColor);
-    
+
     // 优化标题颜色
     settings.titleFontColor = rgbToHex(...generateAccessibleTextColor(cardBg));
-    
+
     // 优化搜索框文字颜色
     settings.searchBoxTextColor = rgbToHex(...generateAccessibleTextColor(searchBoxBg));
     settings.searchBoxPlaceholderColor = rgbToHex(...adjustLightness(generateAccessibleTextColor(searchBoxBg), 20));
-    
+
     // 优化按钮文字颜色
     settings.searchButtonTextColor = rgbToHex(...generateAccessibleTextColor(buttonBg));
-    
+
   } catch (error) {
     console.error('主题优化失败:', error);
   }
-  
+
   return {
     ...theme,
     settings,
